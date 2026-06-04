@@ -5,3 +5,4 @@
 .positai
 *.RData
 data/input/mappluto/
+.claude/
