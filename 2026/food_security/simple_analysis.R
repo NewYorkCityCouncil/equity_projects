@@ -65,14 +65,15 @@ combined <- nyc_tract_demographics_raw %>%
   inner_join(nta_crosswalk, by = "GEOID") %>% 
   ungroup() %>%
   group_by(NTACode) %>% 
-  summarise(total_popE = sum(total_popE, na.rm=T), 
+  summarise(median_incomeE = weighted.mean(median_incomeE, total_popE), 
+            total_popE = sum(total_popE, na.rm=T), 
             white_nhE = sum(white_nhE, na.rm=T), 
             black_nhE = sum(black_nhE, na.rm=T), 
             asian_nhE = sum(asian_nhE, na.rm=T), 
             hispanicE = sum(hispanicE, na.rm=T), 
             perc_white = white_nhE/total_popE*100, 
             perc_black = black_nhE/total_popE*100, 
-            perc_asain = asian_nhE/total_popE*100, 
+            perc_asian = asian_nhE/total_popE*100, 
             perc_hisp = hispanicE/total_popE*100, 
             perc_pov = sum(poverty_belowE, na.rm=T)/sum(poverty_totalE, na.rm=T)*100)  %>% 
   merge(cfc_locations, by.x="NTACode", by.y="nta2020", all=T) %>% 
@@ -87,9 +88,11 @@ combined <- nyc_tract_demographics_raw %>%
 ################################################################################
 
 # how much is the city providing (+ is GOOD)
-summary(lm(cfc_per10k_fi ~ perc_black + perc_hisp + unemployment_rate + 
-             food_insecure_percentage + vulnerable_population, data = combined))
+summary(lm(cfc_per10k_fi ~ perc_black + perc_asian + perc_hisp + unemployment_rate + 
+             food_insecure_percentage + vulnerable_population + median_incomeE, 
+           data = combined))
 
 # how much need is there right now (+ is GOOD)
-summary(lm(-supply_gap_pp ~ perc_black + perc_hisp + unemployment_rate + 
-             food_insecure_percentage + vulnerable_population, data = combined))
+summary(lm(-supply_gap_pp ~ perc_black + perc_asian + perc_hisp + unemployment_rate + 
+             food_insecure_percentage + vulnerable_population + median_incomeE, 
+           data = combined))
