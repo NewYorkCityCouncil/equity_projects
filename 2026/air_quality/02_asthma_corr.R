@@ -14,6 +14,7 @@ options(scipen = -1)
 community_districts <- st_read('data/district_data.geojson') %>%
   mutate(pct_under_18 = round((pct_under_18)*100,2))
 
+# Could compress this into a function, but current layout isn't bad.
 # ---- correlations: childhood asthma rates x race/ethnicity ----
 # ---- white alone 
 w_plot <- ggplot(data = community_districts, 
@@ -22,7 +23,7 @@ w_plot <- ggplot(data = community_districts,
   stat_cor(method = "spearman") + 
   geom_point_interactive(size = community_districts$total_pop/40000,
                          aes(tooltip = paste0("<strong>Community District: ", geography, "</strong><br>",
-                                              "Childhood asthma rate: ", child_asthma, "<br>",
+                                              "Childhood asthma rate per 10k children: ", child_asthma, "<br>",
                                               "Percent white: ", pct_white_alone, "%"))) +
   scale_color_distiller(direction = 1) +
   guides(color="none") +
@@ -30,7 +31,7 @@ w_plot <- ggplot(data = community_districts,
   theme_nycc() +
   labs(color = "Percent white",
        x = "Percent white",
-       y = "Childhood asthma rate")
+       y = "Childhood asthma rate per 10k children")
 w_map <- ggplot(NULL) + 
   geom_sf_interactive(data = community_districts, size = 0.1, 
                       aes(fill = pct_white_alone/100,
@@ -66,7 +67,7 @@ a_plot <- ggplot(data = community_districts,
   stat_cor(method = "spearman") + 
   geom_point_interactive(size = community_districts$total_pop/40000,
                          aes(tooltip = paste0("<strong>Community District: ", geography, "</strong><br>",
-                                              "Childhood asthma rate: ", child_asthma, "<br>",
+                                              "Childhood asthma rate per 10k children: ", child_asthma, "<br>",
                                               "Percent Asian: ", pct_asian_alone, "%"))) +
   scale_color_distiller(direction = 1) +
   guides(color="none") +
@@ -74,7 +75,7 @@ a_plot <- ggplot(data = community_districts,
   theme_nycc() +
   labs(color = "Percent Asian",
        x = "Percent Asian",
-       y = "Childhood asthma rate")
+       y = "Childhood asthma rate per 10k children")
 a_map <- ggplot(NULL) + 
   geom_sf_interactive(data = community_districts, size = 0.1, 
                       aes(fill = pct_asian_alone/100,
@@ -110,7 +111,7 @@ hl_plot <- ggplot(data = community_districts,
   stat_cor(method = "spearman") + 
   geom_point_interactive(size = community_districts$total_pop/40000,
                          aes(tooltip = paste0("<strong>Community District: ", geography, "</strong><br>",
-                                              "Childhood asthma rate: ", child_asthma, "<br>",
+                                              "Childhood asthma rate per 10k children: ", child_asthma, "<br>",
                                               "Percent Hispanic/Latino: ", pct_hisp_latino, "%"))) +
   scale_color_distiller(direction = 1) +
   guides(color="none") +
@@ -118,7 +119,7 @@ hl_plot <- ggplot(data = community_districts,
   theme_nycc() +
   labs(color = "Percent Hispanic/Latino",
        x = "Percent Hispanic/Latino",
-       y = "Childhood asthma rate")
+       y = "Childhood asthma rate per 10k children")
 hl_map <- ggplot(NULL) + 
   geom_sf_interactive(data = community_districts, size = 0.1, 
                       aes(fill = pct_hisp_latino/100,
@@ -154,7 +155,7 @@ b_plot <- ggplot(data = community_districts,
   stat_cor(method = "spearman") + 
   geom_point_interactive(size = community_districts$total_pop/40000,
                          aes(tooltip = paste0("<strong>Community District: ", geography, "</strong><br>",
-                                              "Childhood asthma rate: ", child_asthma, "<br>",
+                                              "Childhood asthma rate per 10k children: ", child_asthma, "<br>",
                                               "Percent Black: ", pct_black_alone, "%"))) +
   scale_color_distiller(direction = 1) +
   guides(color="none") +
@@ -162,7 +163,7 @@ b_plot <- ggplot(data = community_districts,
   theme_nycc() +
   labs(color = "Percent Black",
        x = "Percent Black",
-       y = "Childhood asthma rate")
+       y = "Childhood asthma rate per 10k children")
 b_map <- ggplot(NULL) + 
   geom_sf_interactive(data = community_districts, size = 0.1, 
                       aes(fill = pct_black_alone/100,
@@ -198,7 +199,7 @@ black_asthma_mp <- girafe(ggobj = combined, width_svg = 12, height_svg = 5.5) %>
 #   stat_cor(method = "spearman") + 
 #   geom_point_interactive(size = community_districts$total_pop/40000,
 #                          aes(tooltip = paste0("<strong>Community District: ", geography, "</strong><br>",
-#                                               "Childhood asthma rate: ", child_asthma, "<br>",
+#                                               "Childhood asthma rate per 10k children: ", child_asthma, "<br>",
 #                                               "Percent foreign born: ", pct_foreign_born, "%"))) +
 #   scale_color_distiller(direction = 1) +
 #   guides(color="none") +
@@ -206,7 +207,7 @@ black_asthma_mp <- girafe(ggobj = combined, width_svg = 12, height_svg = 5.5) %>
 #   theme_nycc() +
 #   labs(color = "Percent foreign born",
 #        x = "Percent foreign born",
-#        y = "Childhood asthma rate")
+#        y = "Childhood asthma rate per 10k children")
 # fb_map <- ggplot(NULL) + 
 #   geom_sf_interactive(data = community_districts, size = 0.1, 
 #                       aes(fill = pct_foreign_born/100,
@@ -242,7 +243,7 @@ s_plot <- ggplot(data = community_districts,
   stat_cor(method = "spearman") + 
   geom_point_interactive(size = community_districts$total_pop/40000,
                          aes(tooltip = paste0("<strong>Community District: ", geography, "</strong><br>",
-                                              "Childhood asthma rate: ", child_asthma, "<br>",
+                                              "Childhood asthma rate per 10k children: ", child_asthma, "<br>",
                                               "Percent SNAP: ", pct_households_snap, "%"))) +
   scale_color_distiller(direction = 1) +
   guides(color="none") +
@@ -250,7 +251,7 @@ s_plot <- ggplot(data = community_districts,
   theme_nycc() +
   labs(color = "Percent SNAP",
        x = "Percent households receiving SNAP",
-       y = "Childhood asthma rate")
+       y = "Childhood asthma rate per 10k children")
 s_map <- ggplot(NULL) + 
   geom_sf_interactive(data = community_districts, size = 0.1, 
                       aes(fill = pct_households_snap/100,

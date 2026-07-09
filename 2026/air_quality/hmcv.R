@@ -83,6 +83,10 @@ plot(m)
 # pct_households_snap, pct_black_alone, pct_hisp_latino stat sig & positive; 
 # these demographics were associated with higher rates of child asthma, holding 
 # hmcvs constant
+
+# SNAP is only significant when controlling for HMCV (see 03_model.R).
+# It could be interesting to examine other poverty metrics instead (<200% FPL?)
+
 coef_m <- tidy(m, conf.int = TRUE)
 coef_m <- coef_m %>%
   mutate(fill_col = case_when(
