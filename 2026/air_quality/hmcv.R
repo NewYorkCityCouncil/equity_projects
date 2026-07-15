@@ -51,6 +51,7 @@ ggplot(data = community_districts,
            label = communitydist,
            data_id = communitydist)) +
   stat_cor(method = "spearman") + 
+  labs(x = "Childhood Asthma Emergency Department Visit Rate per 10,000", y = "Housing Maintenance Code Violations per 100 Residential Units") +
   geom_text(nudge_x = 5,
             nudge_y = 5) +
   geom_point() + 
