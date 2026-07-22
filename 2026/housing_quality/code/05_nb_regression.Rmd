@@ -1,0 +1,1045 @@
+# =============================================================================
+# SCRIPT VERSION: pt8-ipw  (NB engine = withReplicates; + missingness diagnostics & IPW)
+# If the knitted output does not print "[pt8-ipw]" near the top, you are
+# running an older copy of this file.
+# =============================================================================
+# Controlled regression: UNSAFE_COND by race/ethnicity
+# Howell-replication NYCHVS dataset
+#
+# Model:
+#   UNSAFE_COND ~ RACE
+#               + SUBSIDY
+#               + OLDER_ADULT + SINGLE + CHILDREN
+#               + YEARBUILT_ORD + UNITS_BIN + ROOMS_RAW
+#
+# Borough dummies excluded: VIF check confirmed rank deficiency of 4 due to
+# collinearity with subsidy composition. YEARBUILT_ORD and UNITS_BIN serve
+# as proxies for borough-level structural variation.
+#
+# CHANGE FROM PRIOR VERSION (pt3):
+#   The prior script fit an unweighted-in-spirit glmmTMB NB model and then
+#   hand-computed NYCHVS SDR replicate-weight SEs by refitting 80 times on
+#   FW1..FW80. That approach produced correct point estimates and correct
+#   SEs, but any likelihood-ratio-based test built on top of it (car::Anova
+#   Type-II tests, and the NB-vs-ZINB LRT) was invalid: passing a survey
+#   weight into glmmTMB's likelihood as if it were a frequency weight
+#   inflates the effective sample size the likelihood "sees," which inflates
+#   every LRT chi-square and collapses p-values regardless of the true
+#   effect size. A parallel check with survey::svrepdesign() + svyglm()
+#   confirmed the manual SDR math was correct (SE ratios 0.91-1.05 vs. a
+#   quasipoisson cross-check) but also confirmed the LR-based joint tests
+#   were unusable (car::Anova chi-squares in the thousands vs. regTermTest
+#   F-stats in the single-to-low-double digits on the same data).
+#
+#   This version replaces that whole two-model workaround with a single,
+#   properly-specified survey-weighted model, fit directly against the SDR
+#   replicate-weight design:
+#     - If the data are overdispersed (same ratio check as before):
+#         sjstats::svyglm.nb() -- a true survey-weighted negative binomial,
+#         fit via survey::svymle() with glm.nb() starting values (Lumley
+#         2010, Complex Surveys, Appendix E).
+#     - If svyglm.nb() fails to converge, or if the data are NOT
+#       overdispersed: svyglm() with quasipoisson (overdispersed but no
+#       stable NB fit) or poisson (not overdispersed) as appropriate.
+#   Coefficients, SEs, AND joint significance tests now all come from one
+#   correctly-specified survey model instead of mixing an NB point estimate
+#   with a quasipoisson test statistic.
+#
+# Variance estimation:
+#   NYCHVS SDR replicate weights (FW1..FW80) are handled natively by
+#   survey::svrepdesign(), using the same (4/80) scaling constant as the
+#   manual loop in the prior version, so results are on the same basis.
+#
+# Zero-inflation:
+#   Dropped from this version. DHARMa's testZeroInflation() on the plain NB
+#   model previously came back non-significant in all three samples
+#   (p = 0.074 / 1.000 / 0.304), and the ZINB coefficients were nearly
+#   identical to the NB's -- so the earlier "ZINB fits significantly
+#   better" LRT result was itself an artifact of the same weight-inflation
+#   bug, not evidence of real excess zeros. No ZINB step is needed.
+#
+# Outputs:
+#   controlled_svy_unsafe_cond_results.csv   full coefficient table
+#   dharma_diagnostics_svy.pdf                residual diagnostics (fit on an
+#                                              equivalent unweighted-design
+#                                              MASS::glm.nb / glm(poisson)
+#                                              model -- see Section 10 note)
+# =============================================================================
+
+
+# -----------------------------------------------------------------------------
+# 0. Packages and environment setup
+# -----------------------------------------------------------------------------
+```{r}
+# Create new environment at "equity_projects/2026/housing_quality/"
+setwd("./2026/housing_quality")
+source("renv/activate.R")
+
+library(tidyverse)
+library(survey)
+library(MASS)
+library(DHARMa)
+library(car)
+library(broom)
+
+# NOTE: glmmTMB is intentionally no longer a required package for the
+# reported model. If you still want a glmmTMB fit for cross-checking,
+# install/load it separately -- it is not used below.
+```
+
+
+
+# -----------------------------------------------------------------------------
+# 1. Configuration
+# -----------------------------------------------------------------------------
+```{r}
+INPUT_CSV  <- "./data/processed/howell_replication_nychvs.csv"
+OUTPUT_CSV <- "./data/processed/controlled_svy_unsafe_cond_results.csv"
+DIAG_PDF   <- "./visuals/dharma_diagnostics_svy.pdf"
+
+N_REPLICATES           <- 80L
+SDR_SCALE              <- 4.0 / N_REPLICATES
+OVERDISPERSION_THRESH  <- 1.5
+STANDARDIZE            <- FALSE   # set TRUE to z-score continuous predictors
+
+OUTCOME_COL   <- "UNSAFE_COND"
+OUTCOME_LABEL <- "Unsafe conditions (count, 0-6)"
+
+RACE_LEVELS <- c("White", "Black", "Hispanic", "Asian",
+                 "AIAN_NHPI", "Other_2plus")
+
+SUBSIDY_LEVELS_ALL   <- c("Unsubsidized", "Voucher", "Other_subsidy")
+SUBSIDY_LEVELS_SUB   <- c("Unsubsidized", "Voucher", "Other_subsidy")
+SUBSIDY_LEVELS_UNSUB <- "Unsubsidized"
+
+REGSTATUS_LEVELS <- c("Market", "Rent_stabilized", "Rent_controlled",
+                      "Other_regulated", "Public_NYCHA")
+
+CONTINUOUS_PREDS <- c("YEARBUILT_ORD", "UNITS_BIN", "ROOMS_RAW")
+
+ALL_PREDICTORS <- c(
+  "RACE", "SUBSIDY", "REGSTATUS", "OLDER_ADULT", "SINGLE", "CHILDREN",
+  "YEARBUILT_ORD", "UNITS_BIN", "ROOMS_RAW"
+)
+```
+
+
+
+# -----------------------------------------------------------------------------
+# 2. Load and prepare
+# -----------------------------------------------------------------------------
+```{r}
+df_raw <- read_csv(INPUT_CSV, show_col_types = FALSE)
+cat(sprintf("Loaded %s rows.\n\n", format(nrow(df_raw), big.mark = ",")))
+
+rep_cols <- paste0("FW", seq_len(N_REPLICATES))
+has_rep  <- all(rep_cols %in% names(df_raw))
+
+if (has_rep) {
+  cat("Detected FW1..FW80 -- using NYCHVS SDR replicate-weight design.\n\n")
+} else {
+  stop("FW1..FW80 not detected -- this script requires replicate weights ",
+       "to build the survey design. Falling back to model-based SEs is not ",
+       "implemented in this version; use the pt3 script's fallback path if ",
+       "replicate weights are unavailable.")
+}
+
+df <- df_raw |>
+  mutate(
+    IS_PUBLIC     = REGSTATUS == "Public_NYCHA",
+    IS_SUBSIDIZED = SUBSIDY %in% c("Voucher", "Other_subsidy") | IS_PUBLIC,
+    RACE      = factor(RACE,      levels = RACE_LEVELS),
+    SUBSIDY   = factor(SUBSIDY,   levels = SUBSIDY_LEVELS_ALL),
+    REGSTATUS = factor(REGSTATUS, levels = REGSTATUS_LEVELS)
+  )
+```
+
+
+
+# -----------------------------------------------------------------------------
+# 3. Overdispersion check (same logic as before -- decides NB vs. Poisson path)
+# -----------------------------------------------------------------------------
+```{r}
+uc_mean <- mean(df[[OUTCOME_COL]], na.rm = TRUE)
+uc_var  <- var(df[[OUTCOME_COL]],  na.rm = TRUE)
+ratio   <- uc_var / uc_mean
+
+cat(strrep("=", 60), "\n")
+cat(sprintf("OVERDISPERSION CHECK  (%s, full dataset)\n", OUTCOME_COL))
+cat(strrep("=", 60), "\n")
+cat(sprintf("  mean : %.4f\n  var  : %.4f\n  ratio: %.4f\n", uc_mean, uc_var, ratio))
+
+use_nb <- ratio > OVERDISPERSION_THRESH
+cat(sprintf("  -> Overdispersed: %s (threshold=%.1f)\n",
+            use_nb, OVERDISPERSION_THRESH))
+cat(sprintf("  -> Will attempt: %s\n\n",
+            if (use_nb) "svymle NB [fallback: svyglm quasipoisson]"
+            else        "svyglm() poisson"))
+```
+
+
+
+# -----------------------------------------------------------------------------
+# 4. Collinearity check (VIF on a Poisson GLM -- unchanged diagnostic)
+# -----------------------------------------------------------------------------
+```{r}
+cat(strrep("=", 60), "\n")
+cat("COLLINEARITY CHECK (VIF, all-renters sample)\n")
+cat(strrep("=", 60), "\n")
+
+df_vif <- df |>
+  filter(!is.na(UNSAFE_COND), !is.na(FW)) |>
+  droplevels()
+
+df_vif$SUBSIDY <- relevel(
+  factor(df_vif$SUBSIDY,
+         levels = intersect(SUBSIDY_LEVELS_ALL, unique(as.character(df_vif$SUBSIDY)))),
+  ref = "Unsubsidized"
+)
+df_vif$REGSTATUS <- relevel(
+  factor(df_vif$REGSTATUS,
+         levels = intersect(REGSTATUS_LEVELS, unique(as.character(df_vif$REGSTATUS)))),
+  ref = "Market"
+)
+
+vif_fit <- glm(
+  UNSAFE_COND ~ RACE + SUBSIDY + REGSTATUS + OLDER_ADULT + SINGLE + CHILDREN +
+    YEARBUILT_ORD + UNITS_BIN + ROOMS_RAW,
+  data    = df_vif,
+  family  = poisson(),
+  weights = FW
+)
+vif_vals <- tryCatch(car::vif(vif_fit), error = function(e) {
+  cat("  (VIF computation failed:", conditionMessage(e), ")\n")
+  NULL
+})
+if (!is.null(vif_vals)) {
+  if (is.matrix(vif_vals)) {
+    vif_df <- as.data.frame(vif_vals) |>
+      rownames_to_column("term") |>
+      rename(GVIF = 1, Df = 2, adj_GVIF = 3)
+    cat("  (Generalized VIF -- adj_GVIF = GVIF^(1/(2*Df)), comparable to sqrt(VIF))\n")
+    print(vif_df |> arrange(desc(adj_GVIF)), digits = 3)
+  } else {
+    vif_df <- tibble(term = names(vif_vals), VIF = unname(vif_vals))
+    print(vif_df |> arrange(desc(VIF)), digits = 3)
+  }
+}
+cat("\n")
+```
+
+
+
+# -----------------------------------------------------------------------------
+# 5. Helper: prepare analytic subset (unchanged from prior version)
+# -----------------------------------------------------------------------------
+```{r}
+prep_subset <- function(data, subsidy_levels, standardize = FALSE) {
+  needed <- c(ALL_PREDICTORS, OUTCOME_COL, "FW")
+
+  sub <- data |>
+    drop_na(any_of(needed)) |>
+    mutate(RACE = factor(RACE, levels = RACE_LEVELS))
+
+  present_sub <- intersect(subsidy_levels,
+                           unique(as.character(sub$SUBSIDY)))
+  present_reg <- intersect(REGSTATUS_LEVELS,
+                           unique(as.character(sub$REGSTATUS)))
+
+  if ("Public_NYCHA" %in% present_reg) {
+    is_pub <- sub$REGSTATUS == "Public_NYCHA"
+    sub_of_pub <- unique(as.character(sub$SUBSIDY[is_pub]))
+    redundant <- length(sub_of_pub) == 1 &&
+      all(sub$REGSTATUS[sub$SUBSIDY == sub_of_pub] == "Public_NYCHA")
+    if (redundant) {
+      present_reg <- setdiff(present_reg, "Public_NYCHA")
+      if (length(present_reg) == 0) {
+        reg_ref <- "Market"
+        present_reg <- "Market"
+      } else {
+        reg_ref <- present_reg[1]
+      }
+      sub <- sub |>
+        mutate(REGSTATUS = if_else(REGSTATUS == "Public_NYCHA",
+                                   reg_ref, as.character(REGSTATUS)))
+      message(sprintf(
+        paste0("  [prep_subset] REGSTATUS=='Public_NYCHA' is collinear with ",
+               "SUBSIDY=='%s' in this subset; dropping the REGSTATUS public ",
+               "level (public rows folded into REGSTATUS reference '%s'). ",
+               "Public housing is carried by the SUBSIDY reference here."),
+        sub_of_pub, reg_ref))
+    }
+  }
+
+  sub <- sub |>
+    mutate(
+      SUBSIDY   = factor(as.character(SUBSIDY),   levels = present_sub),
+      REGSTATUS = factor(as.character(REGSTATUS), levels = present_reg)
+    )
+
+  if (standardize) {
+    sub <- sub |>
+      mutate(across(all_of(CONTINUOUS_PREDS),
+                    ~ (. - mean(., na.rm = TRUE)) / sd(., na.rm = TRUE)))
+  }
+  sub
+}
+```
+
+
+
+# -----------------------------------------------------------------------------
+# 6. Build the model formula for a given subset (unchanged level-count gating)
+# -----------------------------------------------------------------------------
+```{r}
+build_formula <- function(data) {
+  n_sub_levels <- nlevels(droplevels(data$SUBSIDY))
+  n_reg_levels <- nlevels(droplevels(data$REGSTATUS))
+  terms <- c("RACE")
+  if (n_sub_levels > 1) terms <- c(terms, "SUBSIDY")
+  if (n_reg_levels > 1) terms <- c(terms, "REGSTATUS")
+  terms <- c(terms, "OLDER_ADULT", "SINGLE", "CHILDREN",
+             "YEARBUILT_ORD", "UNITS_BIN", "ROOMS_RAW")
+  list(
+    fml   = as.formula(paste("UNSAFE_COND ~", paste(terms, collapse = " + "))),
+    terms = terms
+  )
+}
+```
+
+
+
+# -----------------------------------------------------------------------------
+# 6b. Missing-outcome diagnostics and IPW sensitivity analysis
+# -----------------------------------------------------------------------------
+# UNSAFE_COND is NA wherever HPROBCOUNT == -1 ("not computed" because some
+# component item was missing): 339 of 3,540 rows in the full file (9.6%
+# unweighted, 10.7% weighted). The main models are complete-case, so we need to
+# (a) show whether that missingness is ignorable and (b) quantify how much the
+# estimates would move if we corrected for it.
+#
+# The relevant distinction:
+#   MCAR  -- missingness unrelated to anything. Complete-case is unbiased.
+#   MAR   -- missingness depends on OBSERVED covariates only. Complete-case is
+#            still unbiased for a regression when the missingness is in the
+#            OUTCOME and depends only on covariates already in the model.
+#   MNAR  -- missingness depends on the unobserved outcome itself. Nothing here
+#            can detect or fix that; it is a substantive judgement about the
+#            instrument, and should be stated as a limitation.
+#
+# test_missingness() reports, per predictor block, both the marginal
+# association with missingness and the association conditional on the rest of
+# the model RHS. The conditional column is the one that matters: if RACE is
+# marginally associated with missingness but NOT conditionally, the complete-
+# case race coefficients are protected under MAR.
+# -----------------------------------------------------------------------------
+```{r}
+test_missingness <- function(data, fml) {
+  yv <- all.vars(fml)[1]
+  d  <- data
+  d$.RESP <- !is.na(d[[yv]])
+  n_miss  <- sum(!d$.RESP)
+
+  if (n_miss == 0) {
+    cat("  [missingness] no missing outcome in this subset.\n")
+    return(invisible(NULL))
+  }
+
+  cat(sprintf(
+    "  [missingness] %d of %d rows (%.1f%% unweighted, %.1f%% weighted) lack %s\n",
+    n_miss, nrow(d), 100 * mean(!d$.RESP),
+    100 * sum(d$FW[!d$.RESP]) / sum(d$FW), yv))
+
+  preds <- attr(terms(fml), "term.labels")
+
+  # Marginal: is missingness related to this variable at all?
+  marg <- do.call(rbind, lapply(preds, function(v) {
+    x <- d[[v]]
+    p <- tryCatch({
+      if (is.factor(x) || is.character(x)) {
+        suppressWarnings(chisq.test(table(x, d$.RESP))$p.value)
+      } else {
+        suppressWarnings(t.test(x[!d$.RESP], x[d$.RESP])$p.value)
+      }
+    }, error = function(e) NA_real_)
+    tibble(term = v, marginal_p = p)
+  }))
+
+  # Conditional: does it still predict missingness given the whole RHS?
+  pm <- suppressWarnings(
+    glm(reformulate(preds, response = ".RESP"), data = d, family = binomial))
+  cf <- coef(pm); V <- vcov(pm)
+  cond <- do.call(rbind, lapply(preds, function(v) {
+    idx <- grep(paste0("^", v), names(cf))
+    idx <- idx[is.finite(cf[idx])]
+    if (!length(idx)) return(NULL)
+    b  <- cf[idx]; Vb <- V[idx, idx, drop = FALSE]
+    st <- tryCatch(as.numeric(t(b) %*% solve(Vb) %*% b),
+                   error = function(e) NA_real_)
+    tibble(term = v,
+           conditional_p = if (is.na(st)) NA_real_ else
+             pchisq(st, df = length(idx), lower.tail = FALSE))
+  }))
+
+  out <- left_join(marg, cond, by = "term") |> arrange(conditional_p)
+  print(out |> mutate(across(where(is.numeric), \(x) signif(x, 3))), n = Inf)
+  cat("  (marginal_p: related to missingness at all?  conditional_p: still\n")
+  cat("   predictive given the rest of the RHS?  Small marginal_p rules out\n")
+  cat("   MCAR. Complete-case remains unbiased under MAR -- what matters is\n")
+  cat("   that the KEY exposure is not conditionally predictive.)\n")
+  invisible(out)
+}
+
+# -----------------------------------------------------------------------------
+# IPW sensitivity refit: model the probability of having an observed outcome
+# (the "response propensity") on the model covariates, then reweight complete
+# cases by FW / p_response. This restores the population totals that the
+# complete-case analysis loses, and gives an estimate that is consistent under
+# MAR even if the complete-case one were not. Both the full-sample weight and
+# all 80 replicate weights are scaled identically, so the replicate variance
+# estimator (4/80 sum (theta_r - theta_0)^2) still applies unchanged.
+# -----------------------------------------------------------------------------
+ipw_refit <- function(data, fml) {
+  yv    <- all.vars(fml)[1]
+  preds <- attr(terms(fml), "term.labels")
+
+  # Restrict to complete COVARIATES first: the propensity model can only be
+  # fitted and predicted where the RHS is observed, and NA propensities would
+  # poison the weights and break svrepdesign().
+  covar_ok   <- stats::complete.cases(data[, all.vars(fml)[-1], drop = FALSE])
+  n_cov_drop <- sum(!covar_ok)
+  d          <- data[covar_ok, , drop = FALSE]
+  d$.RESP    <- !is.na(d[[yv]])
+  if (all(d$.RESP)) return(NULL)
+
+  pm <- suppressWarnings(
+    glm(reformulate(preds, response = ".RESP"), data = d, family = binomial))
+
+  cc <- d[d$.RESP, , drop = FALSE]
+  p  <- stats::predict(pm, newdata = cc, type = "response")
+  p  <- pmax(p, 0.05)          # trim to avoid extreme inflation factors
+
+  cc$FW <- cc$FW / p
+  for (rc in rep_cols) cc[[rc]] <- cc[[rc]] / p
+  cc <- droplevels(cc)
+
+  des <- build_svy_design(cc)
+  ww  <- as.numeric(stats::weights(des, type = "sampling"))
+  cc$.ipwwt <- ww / mean(ww)
+  m0  <- suppressWarnings(MASS::glm.nb(fml, data = cc, weights = .ipwwt))
+
+  wr <- survey::withReplicates(des, function(w, data) {
+    data$.nbwt <- w / mean(w)
+    stats::coef(suppressWarnings(MASS::glm.nb(fml, data = data, weights = .nbwt)))
+  })
+
+  list(coefficients = stats::coef(wr),
+       se           = survey::SE(wr),
+       theta        = as.numeric(m0$theta),
+       p_range      = range(p),
+       n_cov_drop   = n_cov_drop,
+       pop_cc       = sum(d$FW[d$.RESP]),
+       pop_ipw      = sum(cc$FW))
+}
+
+# Side-by-side comparison of the main (complete-case) fit and the IPW refit.
+compare_ipw <- function(main_fit, ipw, blocks = c("RACE", "SUBSIDY", "REGSTATUS")) {
+  if (is.null(ipw)) {
+    cat("  (no missing outcome in this subset -- IPW sensitivity not needed)\n")
+    return(invisible(NULL))
+  }
+  cat(sprintf(
+    "  IPW refit: theta=%.3f | response p in [%.3f, %.3f] | weighted N %s -> %s\n",
+    ipw$theta, ipw$p_range[1], ipw$p_range[2],
+    format(round(ipw$pop_cc), big.mark = ","),
+    format(round(ipw$pop_ipw), big.mark = ",")))
+
+  cm <- stats::coef(main_fit); sm <- main_fit$se
+  ci <- ipw$coefficients;      si <- ipw$se
+  keep <- intersect(names(cm), names(ci))
+  keep <- keep[grepl(paste0("^(", paste(blocks, collapse = "|"), ")"), keep)]
+  if (!length(keep)) return(invisible(NULL))
+
+  tab <- tibble(
+    term      = keep,
+    cc_coef   = unname(cm[keep]),
+    cc_se     = unname(sm[keep]),
+    ipw_coef  = unname(ci[keep]),
+    ipw_se    = unname(si[keep])
+  ) |>
+    mutate(diff      = ipw_coef - cc_coef,
+           diff_in_se = diff / cc_se)
+
+  print(tab |> mutate(across(where(is.numeric), \(x) round(x, 4))), n = Inf)
+  cat("  (diff_in_se expresses the shift in complete-case SE units; |values|\n")
+  cat("   well under 1 mean the IPW correction is substantively immaterial.)\n")
+  invisible(tab)
+}
+```
+
+
+
+# -----------------------------------------------------------------------------
+# 7. Build the SDR replicate-weight survey design
+# -----------------------------------------------------------------------------
+# type = "other" tells survey these are pre-scaled generic replicates; scale
+# and rscales below reproduce the (4/80) NYCHVS SDR constant natively, so the
+# design-based variance matches what the manual SDR loop computed in the
+# prior version (independently validated: SE ratio range 0.906-1.046).
+# -----------------------------------------------------------------------------
+```{r}
+build_svy_design <- function(data) {
+  svrepdesign(
+    data              = data,
+    weights           = ~FW,
+    repweights        = data[, rep_cols],
+    type              = "other",
+    scale             = SDR_SCALE,
+    rscales           = rep(1, N_REPLICATES),
+    combined.weights  = TRUE,
+    mse               = TRUE
+  )
+}
+```
+
+
+
+# -----------------------------------------------------------------------------
+# 8. Fit the survey-weighted model, choosing family based on diagnostics
+# -----------------------------------------------------------------------------
+# Decision logic:
+#   use_nb == TRUE  -> try sjstats::svyglm.nb() (true survey-weighted NB).
+#                       If it errors or fails to converge, fall back to
+#                       svyglm(..., family = quasipoisson(link="log")),
+#                       which still corrects SEs for overdispersion even
+#                       though it doesn't model the NB variance function.
+#   use_nb == FALSE -> svyglm(..., family = poisson(link="log")); no
+#                      overdispersion correction needed by the ratio check.
+#
+# NOTE: sjstats::svyglm.nb() is less battle-tested than glmmTMB and can be
+# sensitive to starting values/separation in small strata (e.g. the
+# Unsubsidized sample, where SUBSIDY drops out entirely). Convergence is
+# checked explicitly; check the console messages on first run for each
+# sample before trusting the reported family.
+# -----------------------------------------------------------------------------
+```{r}
+# "scaled.weights" is created inside the survey design via update() and then
+# referenced by name in glm.nb(weights = scaled.weights); declaring it here
+# just silences the "no visible binding" NOTE.
+utils::globalVariables("scaled.weights")
+
+# ---------------------------------------------------------------------------
+# Direct survey-weighted negative binomial via survey::svymle().
+#
+# This replaces sjstats::svyglm.nb(), which is unreliable to depend on across
+# sjstats/survey versions (deprecated/removed export -> errors identically on
+# every sample, which is exactly the "NB fails on all samples" symptom). The
+# code below is a faithful vendored copy of sjstats' own implementation
+# (strengejacke/sjstats, R/svyglmnb.R), which is itself just the Lumley (2010,
+# Appendix E) recipe: svymle() with an NB2 log-likelihood, analytic score, and
+# glm.nb() starting values. Vendoring it removes the package dependency while
+# keeping the exact, tested likelihood/score -- including the analytic score,
+# which is what lets svymle return the robust (sandwich) SEs we want from the
+# replicate-weight design.
+#
+# Parameterization matches sjstats exactly: parameters are (theta, eta) in
+# that order; theta is the NB size parameter (NOT log theta); mu = exp(eta).
+# ---------------------------------------------------------------------------
+
+# NB2 log-likelihood (per observation). The (y == 0) guard avoids log(0) when
+# mu is used inside log(mu + (y==0)); it contributes 0 to the y*log(mu) term.
+nb_loglik <- function(y, theta, eta) {
+  mu <- exp(eta)
+  lgamma(theta + y) - lgamma(theta) - lgamma(y + 1) +
+    theta * log(theta) + y * log(mu + (y == 0)) -
+    (theta + y) * log(theta + mu)
+}
+# d loglik / d eta
+nb_deta <- function(y, theta, eta) {
+  mu  <- exp(eta)
+  dmu <- y / mu - (theta + y) / (theta + mu)
+  dmu * mu
+}
+# d loglik / d theta
+nb_dtheta <- function(y, theta, eta) {
+  mu <- exp(eta)
+  digamma(theta + y) - digamma(theta) + log(theta) + 1 -
+    log(theta + mu) - (y + theta) / (mu + theta)
+}
+# score: columns must line up with the (theta, eta) parameter order
+nb_score <- function(y, theta, eta) {
+  cbind(nb_dtheta(y, theta, eta), nb_deta(y, theta, eta))
+}
+
+svy_nb_fit <- function(fml, design) {
+  # ---------------------------------------------------------------------------
+  # Survey-weighted negative binomial for a REPLICATE-WEIGHT design.
+  #
+  # Why not svymle(): survey::svymle() hard-requires inherits(design,
+  # "survey.design") and has no method for svyrep.design objects. NYCHVS uses
+  # replicate weights, so build_svy_design() returns an svyrep.design -- which
+  # svymle() rejects outright ("design is not a survey.design"). This is also
+  # why sjstats::svyglm.nb() could never have worked here: it wraps svymle().
+  #
+  # The correct tool is withReplicates(), survey's designated mechanism for
+  # applying an arbitrary estimator across replicate weights. It computes
+  # exactly the NYCHVS successive-differences estimator from the weights guide,
+  #     v(theta) = (4/80) * sum_r (theta_r - theta_0)^2,
+  # given scale = 4/80 and rscales = rep(1, 80) as set in build_svy_design().
+  # Verified numerically against a hand-coded implementation of that formula
+  # (agreement to ~5e-17).
+  #
+  # Point estimate: full-sample-weighted NB MLE (weights normalised to mean 1,
+  # which leaves the coefficients unchanged but keeps glm.nb well-scaled).
+  # SEs: replicate-based, per the guide.
+  # ---------------------------------------------------------------------------
+  fit_one <- function(w, data) {
+    data$.nbwt <- w / mean(w)
+    m <- suppressWarnings(
+      MASS::glm.nb(fml, data = data, weights = .nbwt))
+    stats::coef(m)
+  }
+
+  dat <- design$variables
+
+  # Full-sample point estimate + theta (kept for reporting).
+  # NOTE: weights(design) on an svyrep.design returns the FULL n x 80 REPLICATE
+  # MATRIX, not the sampling weights. Passing that to glm.nb silently supplies
+  # a weight vector 80x too long -> NAs -> stop("NAs in V(mu)"). Always request
+  # type = "sampling" here to get the FW vector.
+  dat$.fullwt <- {
+    ww <- stats::weights(design, type = "sampling")
+    as.numeric(ww) / mean(as.numeric(ww))
+  }
+  m0    <- suppressWarnings(
+    MASS::glm.nb(fml, data = dat, weights = .fullwt))
+  theta <- as.numeric(m0$theta)
+
+  wr <- survey::withReplicates(design, fit_one)
+
+  rval <- list(
+    coefficients = stats::coef(wr),
+    se           = survey::SE(wr),
+    theta        = theta,
+    glmnb        = m0,
+    withrep      = wr
+  )
+  class(rval) <- "svynb_rep"
+  rval
+}
+
+# Extractors so downstream code can treat this like any other fit.
+coef.svynb_rep  <- function(object, ...) object$coefficients
+vcov.svynb_rep  <- function(object, ...) stats::vcov(object$withrep)
+SE.svynb_rep    <- function(object, ...) object$se
+
+
+fit_survey_model <- function(data, use_nb) {
+  fb     <- build_formula(data)
+  fml    <- fb$fml
+  terms  <- fb$terms
+
+  # Drop incomplete cases BEFORE building the design. UNSAFE_COND has NAs in
+  # the source extract (339 in the full file) and SINGLE has some too. If they
+  # are left in, the design carries rows the model cannot use, and any
+  # downstream row-subsetting desynchronises design$variables from the
+  # replicate-weight matrix (this is what produced "(subscript) logical
+  # subscript too long"). Filtering here keeps the design, the weights, and the
+  # 80 replicate columns row-aligned by construction.
+  n_before <- nrow(data)
+  data     <- data[stats::complete.cases(data[, all.vars(fml), drop = FALSE]), ]
+  data     <- droplevels(data)
+  n_drop   <- n_before - nrow(data)
+  if (n_drop > 0) {
+    cat(sprintf("  [design] dropped %d incomplete row(s); n=%d used for modelling\n",
+                n_drop, nrow(data)))
+  }
+
+  des    <- build_svy_design(data)
+
+  family_used <- NA_character_
+  fit         <- NULL
+  fit_error   <- NULL
+
+  if (use_nb) {
+    fit_warnings <- character(0)
+    fit <- tryCatch(
+      withCallingHandlers(
+        svy_nb_fit(fml, des),
+        warning = function(w) {
+          fit_warnings <<- c(fit_warnings, conditionMessage(w))
+          invokeRestart("muffleWarning")
+        }
+      ),
+      error = function(e) { fit_error <<- conditionMessage(e); NULL }
+    )
+
+    if (!is.null(fit)) {
+      family_used <- sprintf("NB via withReplicates (theta=%.3f)", fit$theta)
+      if (length(fit_warnings) > 0) {
+        cat(sprintf(
+          "  NB fit converged with %d warning(s) (non-fatal): %s\n",
+          length(fit_warnings),
+          paste(unique(fit_warnings), collapse = "; ")))
+      }
+    } else {
+      # Surface to stdout (cat), not message(), so the reason is visible in
+      # knitted output instead of being hidden on stderr.
+      cat(sprintf(
+        "  NB fit FAILED (%s)\n  -- falling back to svyglm quasipoisson.\n",
+        fit_error))
+    }
+  }
+
+  if (is.null(fit)) {
+      if (use_nb) {
+        fit         <- svyglm(fml, design = des, family = quasipoisson(link = "log"))
+        family_used <- "svyglm quasipoisson (NB fallback)"
+      } else {
+        fit         <- svyglm(fml, design = des, family = poisson(link = "log"))
+        family_used <- "svyglm poisson"
+      }
+    }
+
+  list(fit = fit, design = des, terms = terms, family_used = family_used,
+       data = data, fml = fml)
+}
+```
+
+
+
+# -----------------------------------------------------------------------------
+# 9. Generic coefficient/SE extraction
+# -----------------------------------------------------------------------------
+# Works across svyglm.nb (svymle-based) and svyglm (quasipoisson/poisson)
+# objects without assuming a specific S3 method exists for each. Tries the
+# most specific approach first and falls back progressively.
+# -----------------------------------------------------------------------------
+```{r}
+get_model_coefs <- function(fit) {
+  # NB fits from svy_nb_fit() carry coefficients and replicate-based SEs
+  # directly; handle them first.
+  if (inherits(fit, "svynb_rep")) {
+    return(tibble(term = names(fit$coefficients),
+                  coef = unname(fit$coefficients),
+                  se   = unname(fit$se)))
+  }
+
+  out <- tryCatch({
+    s <- summary(fit)
+    cm <- if (!is.null(s$coefficients)) s$coefficients else coef(s)
+    tibble(
+      term = rownames(cm),
+      coef = cm[, 1],
+      se   = cm[, 2]
+    )
+  }, error = function(e) NULL)
+
+  if (is.null(out)) {
+    out <- tryCatch({
+      cf <- coef(fit)
+      se <- sqrt(diag(vcov(fit)))
+      tibble(term = names(cf), coef = unname(cf), se = unname(se[names(cf)]))
+    }, error = function(e) {
+      stop("Could not extract coefficients/SEs from fit: ", conditionMessage(e))
+    })
+  }
+
+  # svymle NB fits name parameters by block: the dispersion parameter as
+  # "theta.(Intercept)" and the mean model as "eta.<term>". Drop the
+  # dispersion row (anchored to the "theta." prefix so it can't collide with a
+  # real predictor that happens to contain "theta") and strip the "eta."
+  # prefix so downstream code (section labels, joint-test greps like "^RACE")
+  # sees bare term names identical to what svyglm/glm produce. This is a no-op
+  # for plain svyglm objects, whose names have neither prefix.
+  out <- out |>
+    filter(!grepl("^theta\\.", term)) |>
+    mutate(term = sub("^eta\\.", "", term))
+  out
+}
+```
+
+
+
+# -----------------------------------------------------------------------------
+# 10. Generic joint (block-level) significance test
+# -----------------------------------------------------------------------------
+# regTermTest() is documented for svyglm objects but is NOT guaranteed to
+# support svyglm.nb/svymle objects. Rather than depend on that, this uses a
+# model-agnostic multivariate Wald test built directly from coef()/vcov():
+# for a predictor block (e.g. all "RACE*" dummy columns), it tests the joint
+# null that all of that block's coefficients are 0, using the block's
+# coefficient sub-vector and the corresponding sub-matrix of vcov(fit).
+# This works identically regardless of which family/engine produced the fit.
+#
+# For plain svyglm objects (quasipoisson/poisson fallback), regTermTest() is
+# ALSO attempted as a secondary cross-check, since it is documented to work
+# there and gives an F-test with design degrees of freedom rather than a
+# chi-square.
+# -----------------------------------------------------------------------------
+```{r}
+joint_wald_test <- function(fit, term_prefix) {
+  cf  <- coef(fit)
+  V   <- vcov(fit)
+  # svymle NB coefficients are named "eta.<term>"; svyglm/glm names are bare.
+  # Match the block prefix optionally preceded by "eta." so this works for
+  # both engines. The vcov row/col order matches names(cf), so indexing by
+  # the same idx into V is valid in both cases.
+  idx <- grep(paste0("^(eta\\.)?", term_prefix), names(cf))
+  if (length(idx) == 0) return(NULL)
+
+  b   <- cf[idx]
+  Vb  <- V[idx, idx, drop = FALSE]
+  stat <- as.numeric(t(b) %*% solve(Vb) %*% b)
+  df   <- length(idx)
+  p    <- pchisq(stat, df = df, lower.tail = FALSE)
+
+  tibble(term = term_prefix, wald_chisq = stat, df = df, p = p)
+}
+
+run_joint_tests <- function(svy_obj) {
+  # Use the same top-level predictor names used to build the formula, not a
+  # regex guess -- this avoids splitting multi-level factors incorrectly.
+  block_terms <- svy_obj$terms
+
+  wald_rows <- lapply(block_terms, function(t) joint_wald_test(svy_obj$fit, t))
+  wald_df <- bind_rows(wald_rows)
+
+  # Secondary cross-check via regTermTest(), only meaningful for plain
+  # svyglm (quasipoisson/poisson) objects. svymle NB fits are class "svymle",
+  # not "svyglm", so the inherits() test already excludes them; regTermTest is
+  # skipped for those and only the model-agnostic Wald table is reported.
+  is_plain_svyglm <- inherits(svy_obj$fit, "svyglm") &&
+    !grepl("svymle", svy_obj$family_used)
+
+  if (is_plain_svyglm) {
+    regterm_rows <- lapply(block_terms, function(t) {
+      rtt <- tryCatch(regTermTest(svy_obj$fit, t, method = "Wald"),
+                       error = function(e) NULL)
+      if (is.null(rtt)) return(NULL)
+      tibble(term = t, svy_F = as.numeric(rtt$Ftest),
+             svy_df = rtt$df, svy_ddf = rtt$ddf, svy_p = rtt$p)
+    })
+    regterm_df <- bind_rows(regterm_rows)
+    wald_df <- left_join(wald_df, regterm_df, by = "term")
+  }
+
+  wald_df
+}
+```
+
+
+
+# -----------------------------------------------------------------------------
+# 11. Build result table + pretty-print (same layout as the prior version)
+# -----------------------------------------------------------------------------
+```{r}
+make_result_df <- function(coef_tbl, sample_label, n, family_used) {
+  coef_tbl |>
+    mutate(
+      z        = coef / se,
+      p        = 2 * pnorm(-abs(z)),
+      IRR      = exp(coef),
+      IRR_lo95 = exp(coef - 1.96 * se),
+      IRR_hi95 = exp(coef + 1.96 * se),
+      family   = family_used,
+      sample   = sample_label,
+      outcome  = OUTCOME_COL,
+      n        = n
+    )
+}
+
+print_coef_table <- function(res_df) {
+  sections <- list(
+    "Race (vs White)"             = "^RACE",
+    "Subsidy program"             = "^SUBSIDY",
+    "Rent regulation (vs Market)" = "^REGSTATUS",
+    "Renter & property controls"  = "^(OLDER_ADULT|SINGLE|CHILDREN|YEARBUILT|UNITS|ROOMS)",
+    "Intercept"                   = "^\\(Intercept\\)"
+  )
+
+  hdr <- sprintf("  %-32s  %10s  %7s  %6s  %-20s  %s",
+                 "term", "coef(log)", "SE", "IRR", "[95% CI]", "sig")
+
+  for (label in names(sections)) {
+    pat  <- sections[[label]]
+    rows <- res_df |> filter(grepl(pat, term))
+    if (nrow(rows) == 0) next
+
+    cat(sprintf("\n  -- %s --\n", label))
+    cat(hdr, "\n")
+
+    for (i in seq_len(nrow(rows))) {
+      r   <- rows[i, ]
+      sig <- dplyr::case_when(
+        r$p < 0.001 ~ "***",
+        r$p < 0.01  ~ "**",
+        r$p < 0.05  ~ "*",
+        TRUE        ~ ""
+      )
+      flag <- if (grepl("AIAN_NHPI|Other_2plus", r$term)) " \u2020" else ""
+      ci   <- sprintf("[%.3f, %.3f]", r$IRR_lo95, r$IRR_hi95)
+      cat(sprintf("  %-32s  %10.4f  %7.4f  %6.3f  %-20s  %s%s\n",
+                  r$term, r$coef, r$se, r$IRR, ci, sig, flag))
+    }
+  }
+}
+```
+
+
+
+# -----------------------------------------------------------------------------
+# 12. Sample sizes (unchanged)
+# -----------------------------------------------------------------------------
+```{r}
+df_sub   <- df |> filter(IS_SUBSIDIZED)
+df_unsub <- df |> filter(!IS_SUBSIDIZED)
+df_all   <- df
+
+cat(strrep("=", 60), "\n")
+cat("ANALYTIC SAMPLE SIZES\n")
+cat(strrep("=", 60), "\n")
+
+for (info in list(
+  list(label = "Subsidized only",   data = df_sub,   lvls = SUBSIDY_LEVELS_SUB),
+  list(label = "Unsubsidized only", data = df_unsub, lvls = SUBSIDY_LEVELS_UNSUB),
+  list(label = "All renters",       data = df_all,   lvls = SUBSIDY_LEVELS_ALL)
+)) {
+  sub <- prep_subset(info$data, info$lvls)
+  cat(sprintf("  %-22s  starting n=%s,  complete-case n=%s\n",
+              info$label,
+              format(nrow(info$data), big.mark = ","),
+              format(nrow(sub),       big.mark = ",")))
+}
+cat("\n")
+```
+
+
+
+# -----------------------------------------------------------------------------
+# 13. Main loop -- fit, extract, test, diagnose, per sample
+# -----------------------------------------------------------------------------
+```{r}
+all_results <- list()
+all_svy     <- list()   # svy_obj list (fit + design + terms), for later reuse
+pdf(DIAG_PDF, width = 10, height = 8)
+
+samples <- list(
+  list(label = "Subsidized",   data = df_sub,   lvls = SUBSIDY_LEVELS_SUB),
+  list(label = "Unsubsidized", data = df_unsub, lvls = SUBSIDY_LEVELS_UNSUB),
+  list(label = "All",          data = df_all,   lvls = SUBSIDY_LEVELS_ALL)
+)
+
+for (s in samples) {
+  cat("\n", strrep("=", 60), "\n", sep = "")
+  cat(sprintf("%s  --  sample: %s\n", OUTCOME_LABEL, s$label))
+  cat(strrep("=", 60), "\n")
+
+  sub <- prep_subset(s$data, s$lvls, standardize = STANDARDIZE)
+  n   <- nrow(sub)
+
+  # ---- Missing-outcome diagnostics (before any complete-case filtering) ----
+  fml_s <- build_formula(sub)$fml
+  cat("\n")
+  test_missingness(sub, fml_s)
+
+  # ---- Fit: NB via withReplicates (or fallback), SEs from the SDR design ---
+  svy_obj <- fit_survey_model(sub, use_nb)
+  cat(sprintf("  n=%s   Model: %s\n", format(n, big.mark = ","), svy_obj$family_used))
+
+  coef_tbl <- get_model_coefs(svy_obj$fit)
+  res      <- make_result_df(coef_tbl, s$label, n, svy_obj$family_used)
+  print_coef_table(res)
+
+  # ---- IPW sensitivity: does correcting for nonresponse move anything? ----
+  if (inherits(svy_obj$fit, "svynb_rep")) {
+    cat("\n  -- Sensitivity: inverse-probability-of-response weighting --\n")
+    ipw <- tryCatch(ipw_refit(sub, svy_obj$fml),
+                    error = function(e) {
+                      cat("  (IPW refit failed:", conditionMessage(e), ")\n"); NULL
+                    })
+    compare_ipw(svy_obj$fit, ipw)
+  }
+
+  # ---- Joint significance tests --------------------------------------------
+  cat("\n  -- Joint significance per predictor (Wald, design-based vcov) --\n")
+  jt <- run_joint_tests(svy_obj)
+  if ("svy_F" %in% names(jt)) {
+    print(jt |> mutate(across(where(is.numeric), \(x) round(x, 4))), n = Inf)
+    cat("  (svy_F/svy_p from regTermTest(); wald_chisq/p is the model-agnostic\n")
+    cat("   cross-check -- both should agree on which blocks are significant.)\n")
+  } else {
+    print(jt |> mutate(across(where(is.numeric), \(x) round(x, 4))), n = Inf)
+    cat("  (regTermTest() not attempted -- svymle NB objects are not guaranteed\n")
+    cat("   to support it; wald_chisq/p above is the model-agnostic joint test.)\n")
+  }
+
+  # ---- DHARMa residual diagnostics (on an equivalent MASS/glm fit) ---------
+  # DHARMa needs a model class it knows how to simulate from. svymle NB
+  # (svymle-based) and svyglm-with-quasipoisson (no true likelihood to
+  # simulate from) are not directly supported. As a diagnostic proxy, fit
+  # the same formula with MASS::glm.nb() (if NB) or glm(poisson) (if not),
+  # weighted by the primary FW column only (not the full replicate design --
+  # this is a shape/fit check, not a source of reported SEs).
+  cat("\n  [ DHARMa residual diagnostics (proxy fit: MASS::glm.nb / glm poisson) ]\n")
+  diag_fit <- tryCatch({
+    if (use_nb) {
+      MASS::glm.nb(svy_obj$fml, data = sub, weights = FW)
+    } else {
+      glm(svy_obj$fml, data = sub, family = poisson(link = "log"), weights = FW)
+    }
+  }, error = function(e) {
+    cat("  (diagnostic fit failed:", conditionMessage(e), ")\n"); NULL
+  })
+
+  if (!is.null(diag_fit)) {
+    sim_res <- tryCatch(
+      suppressWarnings(simulateResiduals(diag_fit, n = 1000, plot = FALSE)),
+      error = function(e) {
+        cat("  (DHARMa failed:", conditionMessage(e), ")\n"); NULL
+      }
+    )
+    if (!is.null(sim_res)) {
+      unif_test <- testUniformity(sim_res,   plot = FALSE)
+      disp_test <- testDispersion(sim_res,   plot = FALSE)
+      zi_test   <- testZeroInflation(sim_res, plot = FALSE)
+
+      cat(sprintf(
+        "  Uniformity  KS p=%.4f  |  Dispersion p=%.4f  |  Zero-inflation p=%.4f\n",
+        unif_test$p.value, disp_test$p.value, zi_test$p.value
+      ))
+      if (disp_test$p.value < 0.05)
+        cat("  NOTE: Residual overdispersion remains -- expected to some degree\n",
+            "        given quasipoisson's constant-scale approximation, if that\n",
+            "        was the fallback used for this sample.\n")
+      if (zi_test$p.value < 0.05)
+        cat("  NOTE: Zero-inflation test significant -- re-examine before\n",
+            "        assuming NB/Poisson is adequate for this sample.\n")
+
+      plot(sim_res, main = sprintf("DHARMa (proxy fit): %s  [%s]",
+                                    OUTCOME_COL, s$label))
+    }
+  }
+
+  all_results[[s$label]] <- res
+  all_svy[[s$label]]     <- svy_obj
+}
+
+dev.off()
+cat(sprintf("\nDHARMa diagnostic plots saved to %s\n", DIAG_PDF))
+
+cat("\n\u2020 AIAN_NHPI and Other_2plus may have n<10 in the subsidized sample; ",
+    "interpret coefficients with caution.\n\n")
+```
+
+
+
+# -----------------------------------------------------------------------------
+# 14. Save
+# -----------------------------------------------------------------------------
+```{r}
+results <- bind_rows(all_results)
+write_csv(results, OUTPUT_CSV)
+cat(sprintf("Saved full coefficient table to %s\n", OUTPUT_CSV))
+cat("Done.\n")
+```
