@@ -1,0 +1,217 @@
+---
+title: "Equity: ECE Occupied Seats Per Child"
+author: "Brook Frye"
+date: "`r Sys.Date()`"
+output:
+  html_document:
+    theme: flatly
+    toc: true
+    toc_depth: 2
+    df_print: paged
+---
+
+<!--
+Steps:
+1. Load occupied-seat model and map objects.
+2. Plot occupied seats against preschool-age children.
+3. Show model results and diagnostics.
+4. Render the occupied-seats page.
+-->
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+  echo = FALSE,
+  warning = FALSE,
+  message = FALSE,
+  fig.width  = 6.5,
+  fig.height = 3.8,
+  out.width = "82%",
+  fig.align = "center",
+  dpi = 150
+)
+project_root <- getwd()
+knitr::opts_knit$set(root.dir = project_root)
+local({
+  old_wd <- getwd()
+  on.exit(setwd(old_wd), add = TRUE)
+  setwd(project_root)
+  source("00_load_dependencies.R")
+  source("06_lm_mod_occupied_seats_pums-2024.R")
+  source("07_map_occ_seats.R")
+})
+
+dtb <- fread(file.path(project_root, "data/lm_model_data.csv"))
+
+dtb[
+  ,
+  `:=`(occupied_seats = total_seats - total_vacancy,
+       occupied_seats_per_child = (total_seats - total_vacancy) /pre_sch_age)]
+
+```
+
+```{css, echo=FALSE}
+body {
+  font-size: 15px;
+  line-height: 1.45;
+}
+
+.main-container {
+  max-width: 920px;
+}
+
+h1, h2, h3 {
+  margin-top: 1.35rem;
+}
+
+.table {
+  width: auto !important;
+  max-width: 760px;
+  margin-left: auto;
+  margin-right: auto;
+  font-size: 0.88rem;
+}
+
+.table th,
+.table td {
+  padding: 5px 8px !important;
+  white-space: normal !important;
+}
+
+.model-equation {
+  max-width: 760px;
+  margin: 0.75rem auto 1rem auto;
+  padding: 0.75rem 1rem;
+  border: 1px solid #d9e2ec;
+  border-radius: 6px;
+  background: #f8fafc;
+  overflow-x: auto;
+  font-size: 0.9rem;
+}
+
+.model-equation .MathJax_Display,
+.model-equation mjx-container {
+  margin: 0 !important;
+  text-align: left !important;
+}
+
+.map-box {
+  max-width: 760px;
+  margin: 0 auto;
+}
+
+.map-box .leaflet,
+.map-box .html-widget {
+  height: 420px !important;
+}
+
+pre {
+  max-width: 760px;
+  margin-left: auto;
+  margin-right: auto;
+  font-size: 0.82rem;
+  white-space: pre-wrap;
+}
+```
+
+#### Relationship between 3-4 year olds and occupied seats by PUMA
+
+```{r occupied-child-plot, fig.width=6.2, fig.height=3.6, out.width="78%"}
+ggplot(
+  dtb,
+  aes(
+    x = pre_sch_age,
+    y = occupied_seats
+  )
+) +
+  geom_point() +
+  geom_smooth(method = "lm", se = FALSE) +
+  scale_x_continuous(labels = comma) +
+  scale_y_continuous(labels = comma) +
+  labs(
+    x = "Preschool-age children",
+    y = "Occupied seats"
+  ) +
+  theme_minimal(base_size = 11)
+```
+
+#### Occupied seats per child
+
+Occupied seats per child is total seats minus vacant seats, divided by total preschool-age children.
+
+#### Model
+
+We take the log of occupied seats per preschool-age child and regress it on race/ethnicity shares and median household income at the PUMA level.
+
+This model asks: after accounting for the size of the preschool-age population, are neighborhood racial/ethnic makeup or household income associated with having more or fewer occupied seats?
+
+::: model-equation
+$$
+\begin{aligned}
+\log\left(\frac{\text{licensed seats} - \text{vacant seats}}{\text{preschool age children}}\right)
+&= \beta_0 \\
+&\quad + \beta_1(\text{Hispanic/Latino share}) \\
+&\quad + \beta_2(\text{Black non-Hispanic share}) \\
+&\quad + \beta_3(\text{Asian/API non-Hispanic share}) \\
+&\quad + \beta_4(\text{median household income}) \\
+&\quad + \epsilon
+\end{aligned}
+$$
+:::
+
+-   **Asian/API non-Hispanic population share has the strongest relationship with occupied ECE seats.** A 10 percentage-point increase in Asian/API NH population share is associated with approximately 23% more occupied seats per preschool-age child.
+-   **Black non-Hispanic population share is positively associated with occupied seats per child, but the association is not statistically significant after adjusting for neighborhood income.**
+-   **Hispanic/Latino population share is not meaningfully associated with occupied seats per preschool-age child in this model.**
+-   **Median household income is not strongly associated with occupied seats per preschool-age child** after accounting for neighborhood racial/ethnic composition.
+
+```{r occupied-table}
+knitr::kable(
+  occupied_tab,
+  caption = "Model results: percent change in occupied seats per preschool-age child",
+  align = c("l", "r", "r", "r", "r"),
+  digits = 2,
+  table.attr = "class='table table-striped table-hover table-condensed'"
+)
+```
+
+```{r occupied-coef-plot, fig.width=6.4, fig.height=3.7, out.width="80%"}
+p_coef
+```
+
+#### Map of occupied seats by PUMA
+
+```{r map, out.width="100%"}
+occupied_map 
+```
+
+#### Model Diagnostics
+
+```{r}
+pred_obs_p
+resid_fitted_p
+```
+
+#### Robustness Checks
+
+-   **Black NH: Income explains very little of the relationship, but accounting for income increases uncertainty enough that the estimate is no longer significant.**
+-   **The Hispanic/Latino association is attenuated after adjustment for income**, implying that income accounts for most of the modest association observed in the model.
+-   **The Asian/API NH association remains large and highly statistically significant even after adjusting for income.**
+
+```{r}
+kable(
+  compare_table,
+  caption = "Percent change in occupied seats per preschool-age child, with and without income adj",
+  align = c("l", "r", "r", "r", "r")
+) %>%
+  kable_styling(
+    full_width = FALSE,
+    bootstrap_options = c("striped", "hover", "condensed")
+  ) %>%
+  add_header_above(
+    c(
+      " " = 1,
+      "Race/ethnicity only model" = 2,
+      "Race/ethnicity + income model" = 2
+    )
+  )
+
+```
