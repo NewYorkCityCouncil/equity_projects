@@ -9,13 +9,7 @@ output:
 geometry: margin=0.7in
 ---
 
-<!--
-Steps:
-1. Load model-ready ECE data.
-2. Fit total-seat and occupied-seat models.
-3. Build coefficient plots and occupied-seat map.
-4. Render the one-pager.
--->
+
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(
@@ -29,25 +23,14 @@ knitr::opts_chunk$set(
   dpi = 150
 )
 
+source("2026/ECE/00_load_dependencies.R")
 project_root <- getwd()
 knitr::opts_knit$set(root.dir = project_root)
 
-suppressPackageStartupMessages({
-  library(data.table)
-  library(broom)
-  library(ggplot2)
-  library(knitr)
-  library(scales)
-  library(sf)
-})
 
-cool_pal <- if (requireNamespace("councildown", quietly = TRUE)) {
-  councildown::pal_nycc("cool")
-} else if (requireNamespace("councilverse", quietly = TRUE)) {
-  councilverse::pal_nycc("cool")
-} else {
-  c("#203864", "#2f6f9f", "#38a6a5", "#8cc63f", "#f7d13d")
-}
+
+cool_pal <- councildown::pal_nycc("cool")
+
 
 setDTthreads(1L)
 
@@ -59,7 +42,7 @@ fmt_p <- function(p) {
   )
 }
 
-dtb <- fread(file.path(project_root, "data/lm_model_data.csv"))
+dtb <- fread(file.path(project_root, "2026/ECE/data/lm_model_data.csv"))
 dtb[, puma := sprintf("%04d", as.integer(puma))]
 
 dtb[
@@ -169,7 +152,7 @@ occupied_coef_p <- coef_plot(
   "Percent change"
 )
 
-pumas <- st_read(file.path(project_root, "data/puma_nyc.geojson"), quiet = TRUE)
+pumas <- st_read(file.path(project_root, "2026/ECE/data/puma_nyc.geojson"), quiet = TRUE)
 pumas$puma <- sprintf("%04d", as.integer(pumas$puma))
 
 occupied_map_dt <- merge(
