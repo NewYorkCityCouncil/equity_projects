@@ -21,7 +21,7 @@ community_districts <- st_read('data/district_data.geojson') %>%
 #   stat_cor(method = "spearman") + 
 #   geom_point_interactive(size = community_districts$total_pop/40000,
 #                          aes(tooltip = paste0("<strong>Community District: ", geography, "</strong><br>",
-#                                               "PM 2.5: ", annual_mean_mcg_m3, "<br>",
+#                                               "PM 2.5 (mcg/m3): ", annual_mean_mcg_m3, "<br>",
 #                                               "Percent white: ", pct_white_alone, "%"))) +
 #   scale_color_distiller(direction = 1) +
 #   guides(color="none") +
@@ -29,7 +29,7 @@ community_districts <- st_read('data/district_data.geojson') %>%
 #   theme_nycc() +
 #   labs(color = "Percent white",
 #        x = "Percent white",
-#        y = "PM 2.5")
+#        y = "PM 2.5 (mcg/m3)")
 # w_map <- ggplot(NULL) + 
 #   geom_sf_interactive(data = community_districts, size = 0.1, 
 #                       aes(fill = pct_white_alone/100,
@@ -65,7 +65,7 @@ community_districts <- st_read('data/district_data.geojson') %>%
 #   stat_cor(method = "spearman") + 
 #   geom_point_interactive(size = community_districts$total_pop/40000,
 #                          aes(tooltip = paste0("<strong>Community District: ", geography, "</strong><br>",
-#                                               "PM 2.5: ", annual_mean_mcg_m3, "<br>",
+#                                               "PM 2.5 (mcg/m3): ", annual_mean_mcg_m3, "<br>",
 #                                               "Percent Asian: ", pct_asian_alone, "%"))) +
 #   scale_color_distiller(direction = 1) +
 #   guides(color="none") +
@@ -73,7 +73,7 @@ community_districts <- st_read('data/district_data.geojson') %>%
 #   theme_nycc() +
 #   labs(color = "Percent Asian",
 #        x = "Percent Asian",
-#        y = "PM 2.5")
+#        y = "PM 2.5 (mcg/m3)")
 # a_map <- ggplot(NULL) + 
 #   geom_sf_interactive(data = community_districts, size = 0.1, 
 #                       aes(fill = pct_asian_alone/100,
@@ -109,7 +109,7 @@ community_districts <- st_read('data/district_data.geojson') %>%
 #   stat_cor(method = "spearman") + 
 #   geom_point_interactive(size = community_districts$total_pop/40000,
 #                          aes(tooltip = paste0("<strong>Community District: ", geography, "</strong><br>",
-#                                               "PM 2.5: ", annual_mean_mcg_m3, "<br>",
+#                                               "PM 2.5 (mcg/m3): ", annual_mean_mcg_m3, "<br>",
 #                                               "Percent Hispanic/Latino: ", pct_hisp_latino, "%"))) +
 #   scale_color_distiller(direction = 1) +
 #   guides(color="none") +
@@ -117,7 +117,7 @@ community_districts <- st_read('data/district_data.geojson') %>%
 #   theme_nycc() +
 #   labs(color = "Percent Hispanic/Latino",
 #        x = "Percent Hispanic/Latino",
-#        y = "PM 2.5")
+#        y = "PM 2.5 (mcg/m3)")
 # hl_map <- ggplot(NULL) + 
 #   geom_sf_interactive(data = community_districts, size = 0.1, 
 #                       aes(fill = pct_hisp_latino/100,
@@ -153,7 +153,7 @@ community_districts <- st_read('data/district_data.geojson') %>%
 #   stat_cor(method = "spearman") + 
 #   geom_point_interactive(size = community_districts$total_pop/40000,
 #                          aes(tooltip = paste0("<strong>Community District: ", geography, "</strong><br>",
-#                                               "PM 2.5: ", annual_mean_mcg_m3, "<br>",
+#                                               "PM 2.5 (mcg/m3): ", annual_mean_mcg_m3, "<br>",
 #                                               "Percent Black: ", pct_black_alone, "%"))) +
 #   scale_color_distiller(direction = 1) +
 #   guides(color="none") +
@@ -161,7 +161,7 @@ community_districts <- st_read('data/district_data.geojson') %>%
 #   theme_nycc() +
 #   labs(color = "Percent Black",
 #        x = "Percent Black",
-#        y = "PM 2.5")
+#        y = "PM 2.5 (mcg/m3)")
 # b_map <- ggplot(NULL) + 
 #   geom_sf_interactive(data = community_districts, size = 0.1, 
 #                       aes(fill = pct_black_alone/100,
@@ -197,7 +197,7 @@ fb_plot <- ggplot(data = community_districts,
   stat_cor(method = "spearman") +
   geom_point_interactive(size = community_districts$total_pop/40000,
                          aes(tooltip = paste0("<strong>Community District: ", geography, "</strong><br>",
-                                              "PM 2.5: ", annual_mean_mcg_m3, "<br>",
+                                              "PM 2.5 (mcg/m3): ", annual_mean_mcg_m3, "<br>",
                                               "Percent foreign born: ", pct_foreign_born, "%"))) +
   scale_color_distiller(direction = 1) +
   guides(color="none") +
@@ -205,7 +205,7 @@ fb_plot <- ggplot(data = community_districts,
   theme_nycc() +
   labs(color = "Percent foreign born",
        x = "Percent foreign born",
-       y = "PM 2.5")
+       y = "PM 2.5 (mcg/m3)")
 fb_map <- ggplot(NULL) +
   geom_sf_interactive(data = community_districts, size = 0.1,
                       aes(fill = pct_foreign_born/100,
@@ -241,7 +241,7 @@ foreign_pm_mp <- girafe(ggobj = combined, width_svg = 12, height_svg = 5.5) %>%
 #   stat_cor(method = "spearman") + 
 #   geom_point_interactive(size = community_districts$total_pop/40000,
 #                          aes(tooltip = paste0("<strong>Community District: ", geography, "</strong><br>",
-#                                               "PM 2.5: ", annual_mean_mcg_m3, "<br>",
+#                                               "PM 2.5 (mcg/m3): ", annual_mean_mcg_m3, "<br>",
 #                                               "Percent SNAP: ", pct_households_snap, "%"))) +
 #   scale_color_distiller(direction = 1) +
 #   guides(color="none") +
@@ -249,7 +249,7 @@ foreign_pm_mp <- girafe(ggobj = combined, width_svg = 12, height_svg = 5.5) %>%
 #   theme_nycc() +
 #   labs(color = "Percent SNAP",
 #        x = "Percent households receiving SNAP",
-#        y = "PM 2.5")
+#        y = "PM 2.5 (mcg/m3)")
 # s_map <- ggplot(NULL) + 
 #   geom_sf_interactive(data = community_districts, size = 0.1, 
 #                       aes(fill = pct_households_snap/100,

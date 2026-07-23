@@ -59,7 +59,6 @@ ggplot(coef_m1,
 # ---- corroborate the first regression
 sparcs_24 <- vroom("https://health.data.ny.gov/resource/sf4k-39ay.csv?health_service_area='New%20York%20City'&$limit=999999999999") 
 sparcs_24 <- sparcs_24 %>%
-  # filter(health_service_area == "New York City") %>%
   mutate(
     asthma_0_1 = case_when(
       ccsr_diagnosis_code == 'RSP009' ~ 1,

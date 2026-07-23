@@ -138,6 +138,6 @@ leaflet(options = leafletOptions(zoomControl = FALSE)) %>%
     pal = ca_pal, 
     opacity = 1,
     values = c(0,100), 
-    title = "Child asthma (rate)",
+    title = "Child asthma (rate per 10k children)",
     position = "topleft"
   )

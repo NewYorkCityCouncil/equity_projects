@@ -9,7 +9,6 @@ library(zoo)
 
 # ==== download + clean data ====
 # ---- community district spatial boundaries & acs  estimates via councildown (2022) 
-# councilcount::get_ACS_variables(acs_year = 2022) %>% View()
 community_districts <- councilcount::get_geo_estimates(acs_year = 2022, 
                                                        geo = "communitydist", 
                                                        var_codes = c("DP02_0088E", 
@@ -56,7 +55,6 @@ chp <- read_excel("data/2022-chp-pud (1).xlsx", sheet = "CHP_all_data", skip = 1
 
 # ---- total air quality complaints to 311 (2022-2024)
 requests_311 <- vroom("https://data.cityofnewyork.us/resource/erm2-nwe9.csv?agency='DEP'&$where=created_date>'2022-01-01'&$limit=999999999999") 
-# **to do** : filter to 2024 end year
 requests_311 <- requests_311 %>%
   mutate(created_date = as.Date(created_date),
          date = as.yearmon(paste(year(created_date), month(created_date)), "%Y%m")) %>% 
@@ -76,9 +74,9 @@ community_districts <- community_districts %>%
   left_join(ehdp, by = c("communitydist" = "geo_id")) %>%
   left_join(chp %>% mutate(id = as.integer(id)), by = c("communitydist" = "id")) %>%
   mutate(n_311_per10k_res = round(n_311 / (total_pop/10000),2))
-community_districts[is.nan(community_districts)] <- NA
-community_districts[is.infinite(community_districts)] <- NA
-write_sf(community_districts, "data/district_data.geojson")
+community_districts <- community_districts %>%
+  mutate(across(where(is.numeric), ~ replace(.x, is.nan(.x) | is.infinite(.x), NA)))
+write_sf(community_districts, "data/district_data.geojson", delete_dsn = TRUE)
 
 # ==== ignore below ====
 # ---- hospital inpatient discharges (sparcs de-identified) (2024): childhood asthma hospitalizations

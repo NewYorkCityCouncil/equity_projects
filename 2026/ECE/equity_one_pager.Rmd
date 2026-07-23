@@ -1,0 +1,243 @@
+---
+output:
+  pdf_document:
+    toc: false
+  html_document:
+    theme: flatly
+    toc: false
+    df_print: paged
+geometry: margin=0.7in
+---
+
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+  echo = FALSE,
+  warning = FALSE,
+  message = FALSE,
+  fig.width = 5.4,
+  fig.height = 2.5,
+  out.width = "82%",
+  fig.align = "center",
+  dpi = 150
+)
+
+source("2026/ECE/00_load_dependencies.R")
+project_root <- getwd()
+knitr::opts_knit$set(root.dir = project_root)
+
+
+
+cool_pal <- councildown::pal_nycc("cool")
+
+
+setDTthreads(1L)
+
+fmt_p <- function(p) {
+  fcase(
+    is.na(p), NA_character_,
+    p < 0.001, "<0.001",
+    default = sprintf("%.3f", p)
+  )
+}
+
+dtb <- fread(file.path(project_root, "2026/ECE/data/lm_model_data.csv"))
+dtb[, puma := sprintf("%04d", as.integer(puma))]
+
+dtb[
+  ,
+  `:=`(
+    occupied_seats = total_seats - total_vacancy,
+    occupied_seats_per_child = (total_seats - total_vacancy) / pre_sch_age
+  )
+]
+
+total_model <- lm(
+  log(total_seats / pre_sch_age) ~
+    pct_hispanic10 +
+    pct_black10 +
+    pct_asian10 +
+    median_inc_10k,
+  data = dtb
+)
+
+occupied_model <- lm(
+  log(occupied_seats_per_child) ~
+    pct_hispanic10 +
+    pct_black10 +
+    pct_asian10 +
+    median_inc_10k,
+  data = dtb
+)
+
+prep_results <- function(model) {
+  out <- as.data.table(tidy(model, conf.int = TRUE))
+  
+  out[
+    ,
+    `:=`(
+      percent_change = 100 * (exp(estimate) - 1),
+      percent_change_low = 100 * (exp(conf.low) - 1),
+      percent_change_high = 100 * (exp(conf.high) - 1),
+      term_label = fcase(
+        term == "(Intercept)", "Intercept",
+        term == "pct_hispanic10", "10 pp inc Hispanic/Latino",
+        term == "pct_black10", "10 pp inc Black NH",
+        term == "pct_asian10", "10 pp inc Asian/API NH",
+        term == "median_inc_10k", "$10k inc Median hh income",
+        default = term
+      )
+    )
+  ]
+  
+  out
+}
+
+total_results <- prep_results(total_model)
+occupied_results_keep <- prep_results(occupied_model)
+
+clean_terms <- c(
+  "pct_hispanic10",
+  "pct_black10",
+  "pct_asian10",
+  "median_inc_10k"
+)
+
+coef_plot <- function(results, title, x_lab) {
+  ggplot(
+    results[term %in% clean_terms],
+    aes(
+      x = percent_change,
+      y = reorder(term_label, percent_change)
+    )
+  ) +
+    geom_vline(
+      xintercept = 0,
+      linetype = 2,
+      colour = "grey60"
+    ) +
+    geom_errorbar(
+      aes(
+        xmin = percent_change_low,
+        xmax = percent_change_high
+      ),
+      height = 0.15,
+      orientation = "y"
+    ) +
+    geom_point(size = 2.3) +
+    labs(
+      title = title,
+      subtitle = "Reference group: White non-Hispanic",
+      x = x_lab,
+      y = NULL
+    ) +
+    theme_minimal(base_size = 10) +
+    theme(
+      plot.title = element_text(size = 11),
+      plot.subtitle = element_text(size = 9),
+      axis.text.y = element_text(size = 8)
+    )
+}
+
+total_coef_p <- coef_plot(
+  total_results,
+  "Total seats per child",
+  "Percent change"
+)
+
+occupied_coef_p <- coef_plot(
+  occupied_results_keep,
+  "Occupied seats per child",
+  "Percent change"
+)
+
+pumas <- st_read(file.path(project_root, "2026/ECE/data/puma_nyc.geojson"), quiet = TRUE)
+pumas$puma <- sprintf("%04d", as.integer(pumas$puma))
+
+occupied_map_dt <- merge(
+  pumas,
+  dtb[, .(puma, occupied_seats_per_child)],
+  by = "puma",
+  all.x = TRUE
+)
+
+occupied_map_p <- ggplot(occupied_map_dt) +
+  geom_sf(
+    aes(fill = occupied_seats_per_child),
+    color = "white",
+    linewidth = 0.12
+  ) +
+  scale_fill_gradientn(
+    colors = cool_pal,
+    labels = number_format(accuracy = 0.01),
+    name = "Occupied seats\nper child"
+  ) +
+  labs(title = "Occupied ECE seats per preschool-age child") +
+  theme_void(base_size = 10) +
+  theme(
+    plot.title = element_text(size = 11, hjust = 0.5),
+    legend.position = "right"
+  )
+
+```
+
+```{css, echo=FALSE}
+body {
+  font-size: 14px;
+  line-height: 1.38;
+}
+
+.main-container {
+  max-width: 860px;
+}
+
+h1 {
+  font-size: 24px;
+}
+
+h2 {
+  font-size: 18px;
+  margin-top: 1.2rem;
+}
+
+.table {
+  width: auto !important;
+  max-width: 820px;
+  margin-left: auto;
+  margin-right: auto;
+  font-size: 0.84rem;
+}
+
+.table th,
+.table td {
+  padding: 4px 7px !important;
+  white-space: normal !important;
+}
+```
+
+### **Early childhood education: How are demographics associated with total seats and occupied seats?**
+
+**Brook Frye**
+
+We explored neighborhood variation in DOE **early childhood education (ECE) seats per preschool-age child (ages 3–4)** and **occupied ECE seats per preschool-age child**. We estimated the relationship between the number of seats and number of occupied seats per child and neighborhood race/ethnicity shares, median household income.
+
+The two models tell a consistent story. Asian/API non-Hispanic population share has the strongest association with early childhood education (ECE) access. **A 10 percentage-point increase in the Asian/API non-Hispanic population share is associated with approximately 20% more licensed seats per preschool-age child and 23% more occupied seats per preschool-age child.** This suggests a relationship between participation in ECE programs and number of seats per child in an area.
+
+Black non-Hispanic population share is also positively associated with ECE capacity, but the association is attenuated after adjusting for median household income. Median household income has a slight negative association with seats, though the estimate is not significant. Hispanic/Latino population share is not associated with seats after adjustment.
+
+## Coefficient Plots
+
+```{r total-coef-plot, fig.width=6.2, fig.height=2.6, out.width="90%"}
+total_coef_p
+```
+
+```{r occupied-coef-plot, fig.width=6.2, fig.height=2.6, out.width="90%"}
+occupied_coef_p
+```
+
+## Occupied Seats Map
+
+```{r occupied-map, fig.width=7.1, fig.height=5.2, out.width="95%"}
+occupied_map_p
+```
