@@ -1,4 +1,6 @@
-source("code/02_plots.R")
+# Source 02 only if its objects aren't already loaded — lets the report source
+# 03 after 04 without rebuilding (and clobbering) the shared tables.
+if (!exists("mifc_by_cd_year")) source("code/02_plots.R")
 
 # CD boundaries + centroids -----------------------------------------------
 cd_sf <- st_read("data/input/nycc_22c/nycc.shp", quiet = TRUE) |>
@@ -116,7 +118,9 @@ server <- function(input, output, session) {
   })
 }
 
-shinyApp(ui, server)
+# Launch the interactive app only in an interactive session — sourcing this
+# script (e.g. from the report) builds the static maps below without launching.
+if (interactive()) shinyApp(ui, server)
 
 # Static presentation map -----------------------------------------------
 mifc_map_year <- 2013
@@ -182,7 +186,9 @@ mifc_map <- leaflet() |>
     group    = paste("MIFC", mifc_map_year)
   )
 
-mapshot(mifc_map, file = "visuals/inspections_map_2013mifc_2013fidd.png")
+# mapshot needs headless Chrome; skip when sourced during a report knit.
+if (!isTRUE(getOption("knitr.in.progress")))
+  mapshot(mifc_map, file = "visuals/inspections_map_2013mifc_2013fidd.png")
 
 
 rbis_map <- leaflet() |>
@@ -221,5 +227,6 @@ rbis_map <- leaflet() |>
     group = paste("Fires", fidd_map_year)
   )
 
-mapshot(rbis_map, file = "visuals/inspections_map_2022rbis_2013fidd.png")
+if (!isTRUE(getOption("knitr.in.progress")))
+  mapshot(rbis_map, file = "visuals/inspections_map_2022rbis_2013fidd.png")
 

@@ -4,8 +4,8 @@
 #' have these libraries on your computer, the code will attempt to INSTALL them.
 #' 
 #' IF YOU DO NOT WANT TO INSTALL ANY OF THESE PACKAGES, DO NOT RUN THIS CODE.
-options(timeout = 2000)
-list.of.packages <- c("tidyverse", "reticulate","dotenv","janitor","shiny","leaflet","plotly","dplyr","vroom","sf","data.table")
+options(timeout = 5000)
+list.of.packages <- c("tidyverse", "reticulate","dotenv","janitor","shiny","leaflet","plotly","dplyr","vroom","sf","data.table","fixest","plm")
 
 # checks if packages has been previously installed
 new.packages <- list.of.packages[!(list.of.packages %in% installed.packages()[,"Package"])]

@@ -190,83 +190,9 @@ ggplot(monthly_counts, aes(x = date, y = n, color = source)) +
   labs(title = "Monthly inspections: RBIS vs MIFC", x = NULL, y = "Inspections", color = NULL) +
   theme_minimal()
 
-# Block-level geocoding: fidd → alarm box coordinates → MapPLUTO spatial join --------
-mappluto_path <- "data/input/mappluto/MapPLUTO.shp"                            
-mappluto_sf   <- st_read(mappluto_path, quiet = TRUE) 
-
-## load alarm box locations; deduplicate to one coordinate per borobox
-alarmbox <- fread("https://data.cityofnewyork.us/resource/v57i-gtxb.csv?$limit=999999999",
-                  select = c("borobox", "latitude", "longitude"))
-alarmbox <- unique(alarmbox)
-
-## convert alarmbox to sf and join to nearest PLUTO lot → each alarm box gets block + PLUTO vars
-alarmbox_sf <- st_as_sf(alarmbox, coords = c("longitude", "latitude"), crs = 4326) |>
-  st_transform(st_crs(mappluto_sf))
-
-## spatial join: each alarm box point → nearest PLUTO lot
-# NOTE: st_nearest_feature guarantees every geocoded point gets a block, but introduces
-# measurement error — alarm boxes are at street intersections, so the "nearest" lot may
-# not be the lot where the fire occurred. Blocks with many alarm boxes nearby will be
-# over-represented; blocks with no nearby alarm boxes may absorb unrelated incidents.
-# This is an acceptable approximation for block-level aggregation but not lot-level analysis.
-alarmbox_pluto <- st_join(
-  alarmbox_sf,
-  mappluto_sf[, c("BBL", "BldgClass", "LandUse")],
-  join = st_nearest_feature
-)
-alarmbox_pluto <- setDT(st_drop_geometry(alarmbox_pluto))
-alarmbox_pluto[, pluto_block := substr(as.character(BBL), 2, 6)]
-
-## construct borobox key in fidd from borough + alarm box number
-boro_letter <- c(
-  "MANHATTAN"                = "M",
-  "BRONX"                    = "X",
-  "BROOKLYN"                 = "B",
-  "QUEENS"                   = "Q",
-  "RICHMOND / STATEN ISLAND" = "R"
-)
-fidd_dedup[, borobox := paste0(boro_letter[alarm_box_borough], formatC(alarm_box_number, width = 4, flag = "0"))]
-
-## join fidd to alarm boxes to get coordinates
-fidd_with_block <- merge(
-  fidd_dedup,
-  alarmbox_pluto,
-  by     = "borobox",
-  all.x  = TRUE
-)
-
-# Enrich rbis/mifc with PLUTO variables + nearest alarm box -----------------------------------------------
-## find nearest alarm box to each lot centroid, then pull PLUTO vars through that alarm box
-
-## rbis: convert each row to sf using built-in cent_latitude/cent_longitude; assign nearest borobox directly
-rbis_sf <- st_as_sf(
-  rbis_dedup[!is.na(cent_latitude) & !is.na(cent_longitude)],
-  coords = c("cent_longitude", "cent_latitude"), crs = 4326
-) |> st_transform(st_crs(alarmbox_sf))
-
-rbis_dedup[!is.na(cent_latitude) & !is.na(cent_longitude),
-           nearest_borobox := alarmbox_sf$borobox[st_nearest_feature(rbis_sf, alarmbox_sf)]]
-
-rbis_dedup <- merge(rbis_dedup, alarmbox_pluto, by.x = "nearest_borobox", by.y = "borobox", all.x = TRUE)
-
-## mifc: convert each row to sf using latitude/longitude; assign nearest borobox directly
-mifc_sf <- st_as_sf(
-  mifc_dedup[!is.na(latitude) & !is.na(longitude)],
-  coords = c("longitude", "latitude"), crs = 4326
-) |> st_transform(st_crs(alarmbox_sf))
-
-mifc_dedup[!is.na(latitude) & !is.na(longitude),
-           nearest_borobox := alarmbox_sf$borobox[st_nearest_feature(mifc_sf, alarmbox_sf)]]
-
-mifc_dedup <- merge(mifc_dedup, alarmbox_pluto, by.x = "nearest_borobox", by.y = "borobox", all.x = TRUE)
-
-## compare block from raw bbl substring vs PLUTO block via nearest alarm box
-rbis_dedup[, block_match := block == pluto_block]
-mifc_dedup[, block_match := block == pluto_block]
-
-# Percentage of matching
-mean(rbis_dedup$block_match, na.rm = TRUE)         
-mean(mifc_dedup$block_match, na.rm = TRUE)
+# Block-level geocoding (alarm box → MapPLUTO spatial join) moved to the optional
+# 01b_block-geocoding.R. The CD-level analysis does not need it — RBIS, MIFC, and
+# FIDD all carry citycouncildistrict natively. Run 01b only for block-level work.
 
 ## DEMOGRAPHIC VARIABLES
 # Create a clean environment
@@ -318,11 +244,8 @@ rm(url,
    rbis_csv, mifc_csv, fidd_csv,
    rbis_bin_date, mifc_csv_test,
    rbis_monthly, mifc_monthly, monthly_counts,
-   boro_from_full, boro_letter,
+   boro_from_full,
    bldgs_by_cd_path,
-   mappluto_sf, mappluto_path,
-   alarmbox, alarmbox_sf, alarmbox_pluto,
-   fidd_dedup, rbis_sf, mifc_sf,
    demo_vars, pe_codes)
 
 
