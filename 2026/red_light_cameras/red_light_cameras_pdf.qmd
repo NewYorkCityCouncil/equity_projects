@@ -1,5 +1,5 @@
 ---
-title: "Red Light Cameras"
+title: "Red Light Cameras Equity Project"
 format: 
   pdf: default
 
@@ -30,7 +30,7 @@ Our analysis identified 470 intersections with active red light cameras as of Ju
 
 ## Figure 1: Heatmap of Red Light Cameras
 
-```{r}
+```{r, out.width='60%', fig.align='center'}
 knitr::include_graphics("pdf_maps/camera_heatmap.png")
 ```
 
@@ -42,13 +42,14 @@ When evaluating the distribution of red light cameras, it is also important to c
 
 ## Figure 2: 'Traffic Control Disregarded' Crashes by Neighborhood
 
-```{r}
+```{r, out.width='75%', fig.align='center'}
 knitr::include_graphics("pdf_maps/map_export_rel_crashes.png")
 ```
 
 *(Note: Data is from 2025, before the new red light cameras were installed)*
 
 Looking at this map, the highest rates of "Traffic Control Disregarded" crashes are concentrated in Midtown and Lower Manhattan, Harlem, and the South Bronx. Elevated crash rates are also visible in parts of eastern Brooklyn and southeastern Queens, although they are generally lower than those observed in Manhattan and the Bronx. If camera placement closely reflected the distribution of signal-related crashes, one would expect the density of red light cameras to roughly mirror these patterns. However, the two maps suggest a different distribution. Several crash hotspots in Midtown and Lower Manhattan have relatively limited camera coverage, while portions of eastern Brooklyn contain a higher concentration of cameras than crash patterns alone would suggest. 
+
 
 # Analysis 
 
