@@ -158,6 +158,7 @@ rl_model_nb <- MASS::glm.nb(
     perc_nhb +
     perc_his +
     perc_nha +
+    perc_oth +
     related_crashes +
     offset(log(area)),
   data = df_nta
@@ -178,7 +179,7 @@ rl_table <- rl_model_nb %>%
       "perc_nhb" ~ "% Non-Hisp. Black",
       "perc_nha" ~ "% Non-Hisp. Asian",
       "perc_his" ~ "% Hispanic",
-      # "perc_oth" ~ "% Other Race",
+      "perc_oth" ~ "% Other Race",
       "related_crashes" ~ "Related Crashes",
       "(Intercept)" ~ "(Intercept)"
     )
