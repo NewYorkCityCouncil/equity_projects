@@ -1,0 +1,56 @@
+---
+title: no
+---
+
+::::{.cr-section .bg-city layout="overlay-center"}
+
+
+[Air Quality: Looking at XYZ through a racial lens]{.cr-title}
+
+
+::::
+
+::: {.report-layout}
+
+::: {.report-navigation}
+
+<p class="toc-label">In this report</p>
+
+<nav>
+<a href="#overview">Overview</a>
+<a href="#background">Background</a>
+<a href="#methodology">Methodology</a>
+<a href="#what-we-found">What we found</a>
+</nav>
+
+:::
+
+::: {.article-column}
+
+## Overview {#overview}
+
+This report examines how access to public resources, services, and opportunities varies across New York City neighborhoods.
+
+The opening section can provide background on the policy issue, explain why it matters, and introduce the questions addressed by the analysis.
+
+
+## Policy Implications {#background}
+
+Explain what the results mean for policymakers, agencies, service providers, and affected communities.
+
+## Methodology {#methodology}
+
+Describe the data sources, geographic unit, study period, analytical approach, and limitations.
+
+## What We Found {#what-we-found}
+
+Present the main findings here.
+
+You can add additional paragraphs, charts, maps, tables, and subsections as the report develops.
+
+
+:::
+
+:::
+
+:::
