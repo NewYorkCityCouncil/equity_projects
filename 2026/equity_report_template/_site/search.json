@@ -1,0 +1,37 @@
+[
+  {
+    "objectID": "index.html",
+    "href": "index.html",
+    "title": "no",
+    "section": "",
+    "text": "Air Quality: Looking at XYZ through a racial lens\n:::"
+  },
+  {
+    "objectID": "index.html#overview",
+    "href": "index.html#overview",
+    "title": "no",
+    "section": "Overview",
+    "text": "Overview\nThis report examines how access to public resources, services, and opportunities varies across New York City neighborhoods.\nThe opening section can provide background on the policy issue, explain why it matters, and introduce the questions addressed by the analysis."
+  },
+  {
+    "objectID": "index.html#background",
+    "href": "index.html#background",
+    "title": "no",
+    "section": "Policy Implications",
+    "text": "Policy Implications\nExplain what the results mean for policymakers, agencies, service providers, and affected communities."
+  },
+  {
+    "objectID": "index.html#methodology",
+    "href": "index.html#methodology",
+    "title": "no",
+    "section": "Methodology",
+    "text": "Methodology\nDescribe the data sources, geographic unit, study period, analytical approach, and limitations."
+  },
+  {
+    "objectID": "index.html#what-we-found",
+    "href": "index.html#what-we-found",
+    "title": "no",
+    "section": "What We Found",
+    "text": "What We Found\nPresent the main findings here.\nYou can add additional paragraphs, charts, maps, tables, and subsections as the report develops."
+  }
+]
