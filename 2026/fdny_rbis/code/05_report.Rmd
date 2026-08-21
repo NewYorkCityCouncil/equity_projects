@@ -89,6 +89,7 @@ fire_first_last <- ranks_all[regime == "Fires (FIDD)"][, {
 }]
 ```
 
+
 ## Executive Summary
 
 In 2014 the FDNY replaced scheduled inspection cycles with the Risk-Based
@@ -166,6 +167,7 @@ ggplot(vol_long, aes(x = year, y = n, color = source)) +
   theme(legend.position = "top")
 ```
 
+
 ## Data and Methods
 
 | Source | NYC Open Data ID | Role |
@@ -233,6 +235,7 @@ ggplot(fire_trends, aes(x = date, y = fidd_rate, group = citycouncildistrict,
   theme(legend.position = "top")
 ```
 
+
 Structural fire rates vary several-fold across districts and decline citywide
 over the study period. The high-fire districts highlighted above — the top
 tercile of pre-2014 fire rates — are the group the rest of the analysis follows,
@@ -275,6 +278,7 @@ asian_hi <- demo_g[demographic == "Asian alone", `High-fire`]
 asian_lo <- demo_g[demographic == "Asian alone", `Lower-fire`]
 ```
 
+
 The pattern is not a simple white / non-white split — the White share is
 essentially flat across high- and lower-fire districts
 (r = `r round(white_r, 2)`). The clearest signals are an **under-representation
@@ -305,6 +309,7 @@ ggplot(cd_gap, aes(x = pre_fidd_rate, y = pre_mifc_rate)) +
        y = "MIFC inspections per building (log)") +
   theme_nycc()
 ```
+
 
 Mandatory coverage rises with fire rate on average — the mandatory system was
 not blind to risk. But districts scatter around the line, and the residual is
@@ -360,6 +365,7 @@ knitr::kable(over_tbl,
              caption = "Districts significantly over-inspected relative to their structural fire rate (FDR < 0.05). No district is significantly under-inspected.")
 ```
 
+
 So on the fire-to-inspection dimension RBIS broadly does its job. The
 gap-filling hypothesis, however, requires more — that RBIS
 *preferentially* covers the districts the mandatory system left behind. Two
@@ -405,6 +411,7 @@ ggplot(resid_scatter, aes(x = gap_dose, y = rbis_resid)) +
   theme(legend.position = "top")
 ```
 
+
 The slope of that scatter is the −`r abs(round(cor_resid_gap, 2))` correlation:
 districts the mandatory system under-served (right) tend to get less RBIS than
 their fire level predicts (lower), and vice versa.
@@ -429,6 +436,7 @@ ggplot(dose_scatter, aes(x = gap_dose, y = rbis_dose)) +
   theme_nycc() +
   theme(legend.position = "top")
 ```
+
 
 A cluster of points sits visibly above the weakly-negative line. A
 district-by-district outlier test flags only one of them, because a coherent
@@ -462,6 +470,7 @@ knitr::kable(underserved,
              caption = "Ten most under-served districts under the mandatory system, with their RBIS coverage.")
 ```
 
+
 ### Geographic view
 
 The same allocation seen on the map: each district shaded by inspections per
@@ -476,6 +485,7 @@ knitr::include_graphics("visuals/inspections_map_2013mifc_2013fidd.png")
 ```{r map-rbis, fig.cap="RBIS inspections per building by council district (2022), with structural-fire rates as icons.", out.width="100%"}
 knitr::include_graphics("visuals/inspections_map_2022rbis_2013fidd.png")
 ```
+
 
 ## Finding: Did Fires Fall Where RBIS Went? (No Evidence Either Way)
 
@@ -503,6 +513,7 @@ iplot(es_rbis, main = "",
 abline(v = rbis_year - 0.5, lty = 3, col = "grey40")
 ```
 
+
 **1. Pre-trends fail.** The pre-2014 coefficients are not flat — high-dose
 districts were already converging toward the rest of the city, a continuation
 of the city's long structural fire decline. Parallel trends, which the causal
@@ -526,6 +537,7 @@ iplot(es_rbis_trend, main = "",
       xlab = "Year", ylab = "Dose x year coefficient, net of each CD's trend")
 abline(v = rbis_year - 0.5, lty = 3, col = "grey40")
 ```
+
 
 **3. A placebo finds a spurious effect.** Pretending RBIS launched in 2010 and
 using only pre-2014 data — when nothing happened — the same design still
@@ -555,6 +567,7 @@ fires.
 coefplot(dl_mod, main = "", xlab = "Inspection rate lag (years)")
 abline(h = 0, lty = 3, col = "grey40")
 ```
+
 
 Its estimates are mixed and mostly weak. The lagged terms — the ones that break
 same-year simultaneity — show no significant association at one or two years
@@ -649,6 +662,7 @@ dose_scatter_q4 <- merge(dose_cd[!is.na(gap_dose)],
                          cd_fire_q4[, .(citycouncildistrict, fire_group)], by = "citycouncildistrict")
 ```
 
+
 The quartile cut labels **`r n_q4`** districts high-fire (versus **`r n_t3`**
 under the tercile) — a narrower, more extreme group.
 
@@ -664,6 +678,7 @@ ggplot(demo_stack_q4, aes(x = percent, y = group, fill = demographic)) +
   theme_nycc() +
   theme(legend.position = "bottom")
 ```
+
 
 Narrowing to the top quartile keeps only the most fire-prone districts, so the
 demographic contrast is more concentrated. Asian residents make up
@@ -682,6 +697,7 @@ ggplot(dose_scatter_q4, aes(x = gap_dose, y = rbis_dose)) +
   theme_nycc() +
   theme(legend.position = "top")
 ```
+
 
 The group test still holds under the narrower definition: the high-fire bloc
 sits **+`r round(grp_b_q4, 3)`** inspections per building above the RBIS-vs-gap

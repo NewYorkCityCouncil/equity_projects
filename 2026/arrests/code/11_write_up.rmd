@@ -1,13 +1,14 @@
 ---
 title: "NYC Arrest Trends, 2012 - 2024"
+subtitle: "Assessing the Relationship between Neighborhood Demographics and NYPD Arrests in New York City"
 author: 'NYC Data Team'
-date: August, 2026
+date: "`r format(Sys.Date(), '%B %d, %Y')`"
 output: 
-    bookdown::html_document2:
-        toc: yes
-        css: style.css
-    bookdown::pdf_document2:
-        fig_caption: yes
+    html_document:
+        toc: true 
+        toc_float: true
+        toc_depth: 2
+        css: ../assets/style.css
 ---
 
 ```{r setup, include=FALSE}
@@ -45,11 +46,6 @@ arrests_ct_merged <- read_parquet('../data/output/arrests_ct_merged_6_30_26.parq
 arrests_geo <- readRDS('../data/output/arrests_geo.RDS')
 ```
 
-
-
-
-
-<!-- To compile to HTML doc, run rmarkdown::render("scripts/s11_write_up.rmd", output_format = "bookdown::html_document2") -->
 
 # Introduction and Key Findings
 
@@ -109,6 +105,8 @@ arrests_ct_merged |>
 
 
 
+
+
 Prior to the COVID-19 pandemic, arrests rates were declining steadily throughout the city. Figure 1 displays the mean number of arrests per census tract by predominant ethnicity between 2012 and 2024. Between 2012 and 2024, arrests were rapidly decreasing, with particularly sharp reductions occurring in predominantly Black and Hispanic CTs. In the years since 2020, arrests in all census tracts have risen steadily. 
 
 In our regression analysis (Table 1), we show that leading up to the COVID-19 pandemic, predominantly Hispanic and Black communities were experiencing particularly sharp reductions in arrests compared to predominantly White communities (*Temporal Trend x Pred. Black* and *Temporal Trend x Pred. Hispanic*, respectively). While all CTs saw an increase in arrests in the post-pandemic period, the regression results also imply that these increases were especially pronounced in predominantly Black and Latino communities (*Post Covid Temporal Trend x Pred. Black* and *Post-Covid Temporal trend x Hispanic*, respectively). These findings indicate that while Black and Latino communities experienced the greatest reductions in arrests in the years leading up to the pandemic, they have also experienced the worst reversals of those trend in the years since. 
@@ -153,6 +151,8 @@ modelsummary(
   ) |> 
   gt::fmt_markdown(columns = -1)
 ```
+
+
 
 
 
@@ -205,6 +205,8 @@ arrests_geo |>
     position = 'bottomright'
   )
 ```
+
+
 
 
 
@@ -265,6 +267,8 @@ arrests_geo |>
 
 
 
+
+
 <p style="text-align:center; font-style:italic;">Map 2: Predominant ethnicity by census tract, 2024</p>
 
 Of the more than 260,000 arrests made by the NYPD in 2024, a collective 83% were of Black or Hispanic New Yorkers. The two maps above display the total number of arrests in 2024 by census tract (Map 1) and the predominant ethnicity in each census tract (Map 2). Comparing the two, we can see that aside from Lower Manhattan, arrests are concentrated within predominantly Black and predominantly Hispanic/ Latino neighborhoods. Predominantly White census tracts seem to have noticeably fewer arrests on average. However, we see that some of the census tracts with the highest concentrations of Black New Yorkers, such as CT 998 in Canarsie, which is 80% Black, or CT 1208 in New Lots, which is 93% Black, have fewer arrests than average (29 and 25 arrests, respectively, compared to a citywide average of 114). 
@@ -301,6 +305,8 @@ arrests_ct_merged |>
                 align = 'c'
             )
 ```
+
+
 
 
 <p style="text-align:center; font-style:italic;">Table 2: Proportion of Census Tracts in which each racial/ ethnic category is overrepresented in arrests relative to their share of the population.</p>
@@ -393,6 +399,8 @@ m_overrep
 
 
 
+
+
 <p style="text-align:center; font-style:italic;">Map 3: By ethnicity, the extent to which each group is overrepresented in CT-level arrests compared to its share of the CT population. The value displayed is the proportion each group makes up of arrests minus the proportion they make up of the CT population.</p>
 
 The extent to which CT demographic factors reflect arrest rates is complex. Across all of the city's census tracts, there is a general positive and statistically significant association between the share of the population that is Black and the number of arrests seen in those communties. Similarly, CTs that are predominantly Black tend to have significantly more arrests than CTs that are predominantly White. However, when we disaggregate this analysis and examine the relationship between the Black population share and arrest rates separately according to the CT's predominant ethnicity, we observe differential effects. In predominantly White CTs, there is a positive relationship that mirrors the citywide averages. Census tracts with greater proportions of Black residents tend to have higher arrest rates. In contrast, this relationship becomes negative in predominantly Black communities. There, a negative association exists between the share of the population that is Black and the number of arrests that take place in that census tract. Figure 2 displays these two relationships. 
@@ -421,6 +429,8 @@ arrests_ct_merged |>
     labels = c('white_nh' = 'White', 'black_nh' = 'Black')
   )
 ```
+
+
 
 
 
@@ -473,6 +483,8 @@ violent_geo |>
     opacity = 0.7
   )
 ```
+
+
 
 
 

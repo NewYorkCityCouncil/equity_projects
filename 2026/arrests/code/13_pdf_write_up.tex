@@ -1,0 +1,457 @@
+% Options for packages loaded elsewhere
+\PassOptionsToPackage{unicode}{hyperref}
+\PassOptionsToPackage{hyphens}{url}
+\documentclass[
+]{article}
+\usepackage{xcolor}
+\usepackage[margin=1in]{geometry}
+\usepackage{amsmath,amssymb}
+\setcounter{secnumdepth}{5}
+\usepackage{iftex}
+\ifPDFTeX
+  \usepackage[T1]{fontenc}
+  \usepackage[utf8]{inputenc}
+  \usepackage{textcomp} % provide euro and other symbols
+\else % if luatex or xetex
+  \usepackage{unicode-math} % this also loads fontspec
+  \defaultfontfeatures{Scale=MatchLowercase}
+  \defaultfontfeatures[\rmfamily]{Ligatures=TeX,Scale=1}
+\fi
+\usepackage{lmodern}
+\usepackage{setspace}
+\onehalfspacing % 1.5 line spacing
+\ifPDFTeX
+  % pdfLaTeX fallback: closest metric-compatible substitute for
+  % body font "Times New Roman", serif (from style.css)
+  \usepackage{newtx}
+\else
+  % xetex/luatex font selection: match style.css exactly
+  \usepackage{fontspec}
+  \setmainfont{Times New Roman} % body { font-family: "Times New Roman", serif; }
+  \newfontfamily\headingfont{Georgia} % h1-h6 { font-family: Georgia, serif; }
+\fi
+
+% --- Heading font (Georgia, per style.css h1-h6 rule) ---
+\usepackage{titlesec}
+\ifPDFTeX\else
+  \titleformat*{\section}{\headingfont\Large\bfseries}
+  \titleformat*{\subsection}{\headingfont\large\bfseries}
+  \titleformat*{\subsubsection}{\headingfont\normalsize\bfseries}
+\fi
+
+% Use upquote if available, for straight quotes in verbatim environments
+\IfFileExists{upquote.sty}{\usepackage{upquote}}{}
+\IfFileExists{microtype.sty}{% use microtype if available
+  \usepackage[]{microtype}
+  \UseMicrotypeSet[protrusion]{basicmath} % disable protrusion for tt fonts
+}{}
+\makeatletter
+\@ifundefined{KOMAClassName}{% if non-KOMA class
+  \IfFileExists{parskip.sty}{%
+    \usepackage{parskip}
+  }{% else
+    \setlength{\parindent}{0pt}
+    \setlength{\parskip}{6pt plus 2pt minus 1pt}}
+}{% if KOMA class
+  \KOMAoptions{parskip=half}}
+\makeatother
+\usepackage{longtable,booktabs,array}
+\usepackage{calc} % for calculating minipage widths
+% Correct order of tables after \paragraph or \subparagraph
+\usepackage{etoolbox}
+\makeatletter
+\patchcmd\longtable{\par}{\if@noskipsec\mbox{}\fi\par}{}{}
+\makeatother
+% Allow footnotes in longtable head/foot
+\IfFileExists{footnotehyper.sty}{\usepackage{footnotehyper}}{\usepackage{footnote}}
+\makesavenoteenv{longtable}
+\usepackage{graphicx}
+\makeatletter
+\newsavebox\pandoc@box
+\newcommand*\pandocbounded[1]{% scales image to fit in text height/width
+  \sbox\pandoc@box{#1}%
+  \Gscale@div\@tempa{\textheight}{\dimexpr\ht\pandoc@box+\dp\pandoc@box\relax}%
+  \Gscale@div\@tempb{\linewidth}{\wd\pandoc@box}%
+  \ifdim\@tempb\p@<\@tempa\p@\let\@tempa\@tempb\fi% select the smaller of both
+  \ifdim\@tempa\p@<\p@\scalebox{\@tempa}{\usebox\pandoc@box}%
+  \else\usebox{\pandoc@box}%
+  \fi%
+}
+% Set default figure placement to htbp
+\def\fps@figure{htbp}
+\makeatother
+\setlength{\emergencystretch}{3em} % prevent overfull lines
+\providecommand{\tightlist}{%
+  \setlength{\itemsep}{0pt}\setlength{\parskip}{0pt}}
+\usepackage{booktabs}
+\usepackage{caption}
+\usepackage{longtable}
+\usepackage{colortbl}
+\usepackage{array}
+\usepackage{anyfontsize}
+\usepackage{multirow}
+\usepackage{bookmark}
+\IfFileExists{xurl.sty}{\usepackage{xurl}}{} % add URL line breaks if available
+\urlstyle{same}
+\hypersetup{
+  pdftitle={NYC Arrest Trends, 2012 - 2024},
+  pdfauthor={NYC Data Team},
+  hidelinks,
+  pdfcreator={LaTeX via pandoc}}
+
+% --- Council logo, top-right header on every page ---
+\usepackage{fancyhdr}
+\pagestyle{fancy}
+\fancyhf{}
+\renewcommand{\headrulewidth}{0pt}
+\fancyhead[R]{\includegraphics[width=1.5in]{../assets/data-council-logo.png}}
+\setlength{\headheight}{0.6in} % increase if the logo still overlaps the text
+
+\title{NYC Arrest Trends, 2012 - 2024}
+\usepackage{etoolbox}
+\makeatletter
+\providecommand{\subtitle}[1]{% add subtitle to \maketitle
+  \apptocmd{\@title}{\par {\large #1 \par}}{}{}
+}
+\makeatother
+\subtitle{Assessing the Relationship between Neighborhood Demographics
+and NYPD Arrests in New York City}
+\author{NYC Data Team}
+\date{August 21, 2026}
+
+\begin{document}
+\maketitle
+
+{
+\setcounter{tocdepth}{2}
+\tableofcontents
+}
+\section{Introduction and Key
+Findings}\label{introduction-and-key-findings}
+
+In 2024, the NYPD made 260,457 arrests across the five boroughs.
+Majority of these arrests were of Black and Hispanic New Yorkers,
+despite only comprising for 22\% and 27\% of the population,
+respectively. Though this citywide disparity in arrest rates is
+well-documented, this analysis uncovers trends in arrest incidence at a
+more granular level, examining associations between demographic factors
+such as race and socioeconomic status and arrest rates. We rely on the
+\href{https://data.cityofnewyork.us/Public-Safety/NYPD-Arrests-Data-Historic-/8h9b-rp9u/about_data}{NYPD's
+historic arrest data}, available on NYC Open Data. For demographic
+indicators, we rely on values derived from the
+\href{https://www.census.gov/data/developers/data-sets/acs-5year.html}{American
+Community Survey 5-year Data}. To reliably coalesce data from these two
+sources, we limit our temporal range from 2012 - 2024, providing summary
+statistics with the latest available year in our sample (2024).
+
+The key findings of this analysis can be summarized as follows:
+
+\begin{itemize}
+\item
+  In the years leading up to the COVID-19 pandemic, the city saw a
+  drastic reduction in the number of arrests, with particularly sharp
+  declines in predominantly Black and Hispanic CTs relative to
+  predominantly White CTs.
+\item
+  Since the pandemic, arrests have increased, with Black and Hispanic
+  CTs experiencing particularly large increases in arrests relative to
+  predominantly White CTs.
+\item
+  Black and Hispanic New Yorkers are overrepresented in city-wide
+  arrests, comprising only 22\% and 27\% of NYC residents but accounting
+  for 47\% and 36\% of all arrests, respectively. In contrast, White New
+  Yorkers, who represent 34\% of the city's population, account for only
+  10\% of all arrests.
+\item
+  Such disparities exist at both a city-wide and local level, with Black
+  New Yorkers accounting for a greater proportion of arrests than they
+  do as a share of the population in 87\% of the city's census tracts
+  (CTs).
+\item
+  CTs that are predominantly Black or predominantly Hispanic/ Latino
+  generally have higher rates of arrests than do predominantly White
+  CTs.
+\item
+  The share of the CT population that is Black is positively correlated
+  with the number of arrests in CT. However, this relationship is only
+  positive in predominantly White areas. In CTs in which the plurality
+  of residents are Black, the number of arrests decreases as the Black
+  share of the population increases.
+\item
+  The proportion of arrests made in predominantly Black CTs that are for
+  index crimes as opposed to lower-level offenses is smaller relative to
+  the proportion of these arrests made in predominantly White CTs -
+  implying that arrests in predominantly Black CTs are more likely to be
+  made for lesser offenses, though the difference is quite small.
+\end{itemize}
+
+\section{Temporal Trends in NYC
+Arrests}\label{temporal-trends-in-nyc-arrests}
+
+\begin{figure}[h]
+
+{\centering \includegraphics[width=0.87\textwidth]{13_pdf_write_up_files/figure-latex/arrests-covid-1} 
+
+}
+
+\caption{Arrests leading up to and following the COVID-19 Pandemic}\label{fig:arrests-covid}
+\end{figure}
+
+Prior to the COVID-19 pandemic, arrests rates were declining steadily
+throughout the city. Figure \ref{fig:arrests-covid} displays the mean number of arrests per
+census tract by predominant ethnicity between 2012 and 2024. Between
+2012 and 2024, arrests were rapidly decreasing, with particularly sharp
+reductions occurring in predominantly Black and Hispanic CTs. In the
+years since 2020, arrests in all census tracts have risen steadily.
+
+In our regression analysis (Table \ref{tab:tab-trend-mods}), we show that leading up to the
+COVID-19 pandemic, predominantly Hispanic and Black communities were
+experiencing particularly sharp reductions in arrests compared to
+predominantly White communities (\emph{Temporal Trend x Pred. Black} and
+\emph{Temporal Trend x Pred. Hispanic}, respectively). While all CTs saw
+an increase in arrests in the post-pandemic period, the regression
+results also imply that these increases were especially pronounced in
+predominantly Black and Latino communities (\emph{Post Covid Temporal
+Trend x Pred. Black} and \emph{Post-Covid Temporal trend x Hispanic},
+respectively). These findings indicate that while Black and Latino
+communities experienced the greatest reductions in arrests in the years
+leading up to the pandemic, they have also experienced the worst
+reversals of those trend in the years since.
+
+\begin{table}[t]
+\caption{\label{tab:tab-trend-mods}Estimating Trends in Arrest Rates Before and After the COVID-19 Pandemic} 
+\fontsize{12.0pt}{14.0pt}\selectfont
+\scalebox{0.85}{%
+\begin{tabular*}{\linewidth}{@{\extracolsep{\fill}}lcc}
+\toprule
+  & (1) & (2) \\ 
+\midrule\addlinespace[2.5pt]
+Post Covid & \textbf{-0.404} & \textbf{-0.393} \\ 
+ & (0.019) & (0.018) \\ 
+Temporal Trend (year - 2020) & \textbf{-0.074} & \textbf{-0.074} \\ 
+ & (0.003) & (0.003) \\ 
+Post Covid Temporal Trend & \textbf{0.213} & \textbf{0.229} \\ 
+ & (0.008) & (0.008) \\ 
+Post Covid Temporal Trend x Pred. Asian & \textbf{0.043} & \textbf{0.031} \\ 
+ & (0.014) & (0.014) \\ 
+Post Covid Temporal Trend x Pred. Black & \textbf{0.053} & \textbf{0.051} \\ 
+ & (0.011) & (0.011) \\ 
+Post Covid Temporal Trend x Pred. Hispanic & \textbf{0.061} & \textbf{0.057} \\ 
+ & (0.011) & (0.011) \\ 
+Post Covid x Pred. Asian & -0.038 & -0.025 \\ 
+ & (0.038) & (0.036) \\ 
+Post Covid x Pred. Black & -0.040 & -0.030 \\ 
+ & (0.025) & (0.024) \\ 
+Post Covid x Pred. Hispanic & -0.014 & -0.002 \\ 
+ & (0.025) & (0.024) \\ 
+Temporal Trend x Pred. Asian & -0.004 & -0.006 \\ 
+ & (0.006) & (0.006) \\ 
+Temporal Trend x Pred. Black & \textbf{-0.029} & \textbf{-0.034} \\ 
+ & (0.004) & (0.004) \\ 
+Temporal Trend x Pred. Hispanic & \textbf{-0.029} & \textbf{-0.032} \\ 
+ & (0.004) & (0.004) \\ 
+Pred. Asian & -0.014 & -0.013 \\ 
+ & (0.033) & (0.032) \\ 
+Pred. Black & -0.061 & \textbf{-0.085} \\ 
+ & (0.040) & (0.042) \\ 
+Pred. Hispanic & \textbf{-0.074} & \textbf{-0.095} \\ 
+ & (0.035) & (0.035) \\ 
+Population (logged) & \textbf{0.111} & \textbf{0.118} \\ 
+ & (0.051) & (0.052) \\ 
+Median Income (logged) & \textbf{-0.134} & \textbf{-0.125} \\ 
+ & (0.027) & (0.027) \\ 
+Wealth Inequality (Gini Index) & -0.205 & -0.190 \\ 
+{} & {(0.107)} & {(0.107)} \\ 
+Num.Obs. & 27462 & 27462 \\ 
+R2 & 0.907 & 0.235 \\ 
+R2 Adj. & 0.898 & 0.220 \\ 
+R2 Within & 0.427 & 0.161 \\ 
+R2 Within Adj. & 0.427 & 0.161 \\ 
+AIC & 30467.9 & 247916.5 \\ 
+BIC & 49736.9 & 267185.5 \\ 
+RMSE & 0.39 & 79.93 \\ 
+Std.Errors & by: true\_boroct & by: true\_boroct \\ 
+FE: true\_boroct & X & X \\ 
+\bottomrule
+\end{tabular*}%
+}
+% \begin{tablenotes}
+% \small
+% \item \textbf{Bold} indicates $p < 0.05$ (i.e., $|$coefficient / SE$| \geq 1.96$).
+% \end{tablenotes}
+\end{table}
+
+
+\clearpage
+
+\section{Geographic and Demographic Trends in NYPD
+Arrests}\label{geographic-and-demographic-trends-in-nypd-arrests}
+
+\begin{figure}
+
+{\centering \includegraphics[width=0.85\textwidth]{13_pdf_write_up_files/figure-latex/map-arrests-2024-1} 
+
+}
+
+\caption{Total Arrests by Census Tract, 2024}\label{fig:map-arrests-2024}
+\end{figure}
+
+\begin{figure}
+
+{\centering \includegraphics[width=0.85\textwidth]{13_pdf_write_up_files/figure-latex/map-ethnicity-2024-1} 
+
+}
+
+\caption{Predominant ethnicity by census tract, 2024}\label{fig:map-ethnicity-2024}
+\end{figure}
+
+Of the more than 260,000 arrests made by the NYPD in 2024, a collective
+83\% were of Black or Hispanic New Yorkers. The two maps above display
+the total number of arrests in 2024 by census tract (Figure \ref{fig:map-arrests-2024}) and the
+predominant ethnicity in each census tract (Figure \ref{fig:map-ethnicity-2024}). Comparing the two,
+we can see that aside from Lower Manhattan, arrests are concentrated
+within predominantly Black and predominantly Hispanic/ Latino
+neighborhoods. Predominantly White census tracts seem to have noticeably
+fewer arrests on average. However, we see that some of the census tracts
+with the highest concentrations of Black New Yorkers, such as CT 998 in
+Canarsie, which is 80\% Black, or CT 1208 in New Lots, which is 93\%
+Black, have fewer arrests than average (29 and 25 arrests, respectively,
+compared to a citywide average of 114).
+
+Table \ref{tab:overrep} below shows that these disparities exist at both the citywide
+and local levels. In 87\% of census tracts, the share of Black New
+Yorkers who are arrested is greater than their share of the tract's
+population. This is true for those of Hispanic/ Latino origin in 64\% of
+tracts and for those of Asian descent in 28\% of tracts. The
+corresponding map shows these relationships visually.
+
+\begin{longtable}[]{@{}cc@{}}
+\toprule\noalign{}
+Race/ Ethnicity & Prop. of CTs Overrepresented in Arrests \\
+\midrule\noalign{}
+\endhead
+\bottomrule\noalign{}
+\endlastfoot
+Black & 87\% \\
+White & 22\% \\
+Asian & 28\% \\
+Hispanic & 64\% \\
+\caption{Proportion of Census Tracts in which each racial/ ethnic
+category is overrepresented in arrests relative to their share of the
+population.}
+\label{tab:overrep}
+\end{longtable}
+
+\begin{figure}
+
+{\centering \includegraphics{13_pdf_write_up_files/figure-latex/map-overrep-1} 
+
+}
+
+\caption{By ethnicity, the extent to which each group is overrepresented in CT-level arrests compared to its share of the CT population. The value displayed is the proportion each group makes up of arrests minus the proportion they make up of the CT population. Higher values (blue) indicate that the proportion of those arrested from a given ethnicity is higher than the proportion that ethnicity makes up in the population. Lower values (red) indicate that the reverse.}\label{fig:map-overrep}
+\end{figure}
+
+The extent to which CT demographic factors reflect arrest rates is
+complex. Across all of the city's census tracts, there is a general
+positive and statistically significant association between the share of
+the population that is Black and the number of arrests seen in those
+communties. Similarly, CTs that are predominantly Black tend to have
+significantly more arrests than CTs that are predominantly White.
+However, when we disaggregate this analysis and examine the relationship
+between the Black population share and arrest rates separately according
+to the CT's predominant ethnicity, we observe differential effects. In
+predominantly White CTs, there is a positive relationship that mirrors
+the citywide averages. Census tracts with greater proportions of Black
+residents tend to have higher arrest rates. In contrast, this
+relationship becomes negative in predominantly Black communities. There,
+a negative association exists between the share of the population that
+is Black and the number of arrests that take place in that census tract.
+Figure \ref{fig:arrests-black-share} displays these two relationships.
+
+\begin{figure}
+
+{\centering \includegraphics[width=0.8\textwidth]{13_pdf_write_up_files/figure-latex/arrests-black-share-1} 
+
+}
+
+\caption{Black share of CT population and arrest rates, by predominant ethnicity}\label{fig:arrests-black-share}
+\end{figure}
+
+\clearpage
+
+\section{Index Crimes}\label{index-crimes}
+
+To gain an understanding of the crimes for which individuals are being
+arrested, we examine the number of index crime arrests per census tract.
+Index crimes are those which involve serious offenses, such as murder,
+robbery, rape, or assault. We track the proportion of arrests that are
+made for index crimes as opposed to all other arrests in a census tract.
+Figure \ref{fig:map-index-crimes} visualizes the distribution of this proportion around New
+York City. Unlike in the previous map, which displayed total arrests,
+the spatial distribution of this data is significantly more even, though
+several hotspots of index crimes are apparent near Prospect Park and
+Northeastern Queens, for example.
+
+\begin{figure}
+
+{\centering \includegraphics[width=0.8\textwidth]{13_pdf_write_up_files/figure-latex/map-index-crimes-1} 
+
+}
+
+\caption{The proportion of 2024 arrests in each census tract that are for index crimes. The value displayed in each CT is the number of arrests for index crimes divided by the total number of arrests in that census tract.}\label{fig:map-index-crimes}
+\end{figure}
+
+In Table \ref{tab:tab-index-mod}, we statistically examine whether the relationship
+between census tract demographics and index crime rates is similar to
+that between demographics and total arrests. Using predominantly White
+tracts as a reference category, we see that in predominantly Black
+tracts, there are fewer index crime arrests relative to arrests for
+lower-level offenses. In predominantly Hispanic and Asian communities,
+there are comparatively more arrests made for index crimes relative to
+lesser offenses. Though these estimates are statistically significant,
+the actual magnitude of these differences is fairly small - just 0.02,
+-0.01, and 0.018 for predominantly Asian, Black, and Hispanic
+neighborhoods, respectively.
+
+\begin{table}[t]
+\caption{\label{tab:tab-index-mod}Estimating the Relationship between Tract Demographics and Index Crime Rates} 
+\fontsize{12.0pt}{14.0pt}\selectfont
+\scalebox{0.85}{
+\begin{tabular*}{\linewidth}{@{\extracolsep{\fill}}lc}
+\toprule
+  & (1) \\ 
+\midrule\addlinespace[2.5pt]
+Pred. Asian & \textbf{0.023} \\ 
+ & (0.005) \\ 
+Pred. Black & \textbf{-0.010} \\ 
+ & (0.004) \\ 
+Pred. Hispanic & \textbf{0.018} \\ 
+ & (0.005) \\ 
+Population (logged) & \textbf{0.018} \\ 
+ & (0.004) \\ 
+Median Income (logged) & -0.002 \\ 
+ & (0.004) \\ 
+Total Arrests (logged) & 0.001 \\ 
+ & (0.002) \\ 
+Wealth Inequality (logged) & -0.000 \\ 
+{} & {(0.011)} \\ 
+Num.Obs. & 27466 \\ 
+R2 & 0.106 \\ 
+R2 Adj. & 0.106 \\ 
+R2 Within & 0.015 \\ 
+R2 Within Adj. & 0.014 \\ 
+AIC & -33127.6 \\ 
+BIC & -32963.2 \\ 
+RMSE & 0.13 \\ 
+Std.Errors & by: true\_boroct \\ 
+FE: yr & X \\ 
+\bottomrule
+\end{tabular*}
+}
+% \begin{tablenotes}
+% \small
+% \item \textbf{Bold} indicates $p < 0.05$ (i.e., $|$coefficient / SE$| \geq 1.96$).
+% \end{tablenotes}
+\end{table}
+
+\end{document}
