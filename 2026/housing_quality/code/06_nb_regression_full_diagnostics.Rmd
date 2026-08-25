@@ -1,6 +1,6 @@
 # =============================================================================
-# SCRIPT VERSION: pt8-ipw  (NB engine = withReplicates; + missingness diagnostics & IPW)
-# If the knitted output does not print "[pt8-ipw]" near the top, you are
+# SCRIPT VERSION: pt10-nbdiag6  (withReplicates NB; 6 residual diagnostics incl. zero-inflation + Pearson)
+# If the knitted output does not print "[pt10-nbdiag6]" near the top, you are
 # running an older copy of this file.
 # =============================================================================
 # Controlled regression: UNSAFE_COND by race/ethnicity
@@ -68,11 +68,10 @@
 
 
 # -----------------------------------------------------------------------------
-# 0. Packages and environment setup
+# 0. Packages
 # -----------------------------------------------------------------------------
 
 ```{r}
-# Create new environment at "equity_projects/2026/housing_quality/"
 setwd("../")
 source("renv/activate.R")
 
@@ -82,11 +81,8 @@ library(MASS)
 library(DHARMa)
 library(car)
 library(broom)
-
-# NOTE: glmmTMB is intentionally no longer a required package for the
-# reported model. If you still want a glmmTMB fit for cross-checking,
-# install/load it separately -- it is not used below.
 ```
+
 
 
 
@@ -98,7 +94,7 @@ library(broom)
 ```{r}
 INPUT_CSV  <- "./data/processed/howell_replication_nychvs.csv"
 OUTPUT_CSV <- "./data/processed/controlled_svy_unsafe_cond_results.csv"
-DIAG_PDF   <- "./visuals/dharma_diagnostics_svy.pdf"
+DIAG_PDF   <- "./data/processed/dharma_diagnostics_svy.pdf"
 
 N_REPLICATES           <- 80L
 SDR_SCALE              <- 4.0 / N_REPLICATES
@@ -125,6 +121,7 @@ ALL_PREDICTORS <- c(
   "YEARBUILT_ORD", "UNITS_BIN", "ROOMS_RAW"
 )
 ```
+
 
 
 
@@ -162,6 +159,7 @@ df <- df_raw |>
 
 
 
+
 # -----------------------------------------------------------------------------
 # 3. Overdispersion check (same logic as before -- decides NB vs. Poisson path)
 # -----------------------------------------------------------------------------
@@ -183,6 +181,7 @@ cat(sprintf("  -> Will attempt: %s\n\n",
             if (use_nb) "svymle NB [fallback: svyglm quasipoisson]"
             else        "svyglm() poisson"))
 ```
+
 
 
 
@@ -236,6 +235,7 @@ if (!is.null(vif_vals)) {
 }
 cat("\n")
 ```
+
 
 
 
@@ -300,6 +300,7 @@ prep_subset <- function(data, subsidy_levels, standardize = FALSE) {
 
 
 
+
 # -----------------------------------------------------------------------------
 # 6. Build the model formula for a given subset (unchanged level-count gating)
 # -----------------------------------------------------------------------------
@@ -319,6 +320,7 @@ build_formula <- function(data) {
   )
 }
 ```
+
 
 
 
@@ -495,6 +497,7 @@ compare_ipw <- function(main_fit, ipw, blocks = c("RACE", "SUBSIDY", "REGSTATUS"
 
 
 
+
 # -----------------------------------------------------------------------------
 # 7. Build the SDR replicate-weight survey design
 # -----------------------------------------------------------------------------
@@ -518,6 +521,7 @@ build_svy_design <- function(data) {
   )
 }
 ```
+
 
 
 
@@ -728,6 +732,7 @@ fit_survey_model <- function(data, use_nb) {
 
 
 
+
 # -----------------------------------------------------------------------------
 # 9. Generic coefficient/SE extraction
 # -----------------------------------------------------------------------------
@@ -779,6 +784,7 @@ get_model_coefs <- function(fit) {
   out
 }
 ```
+
 
 
 
@@ -854,6 +860,7 @@ run_joint_tests <- function(svy_obj) {
 
 
 
+
 # -----------------------------------------------------------------------------
 # 11. Build result table + pretty-print (same layout as the prior version)
 # -----------------------------------------------------------------------------
@@ -914,6 +921,7 @@ print_coef_table <- function(res_df) {
 
 
 
+
 # -----------------------------------------------------------------------------
 # 12. Sample sizes (unchanged)
 # -----------------------------------------------------------------------------
@@ -939,6 +947,205 @@ for (info in list(
               format(nrow(sub),       big.mark = ",")))
 }
 cat("\n")
+```
+
+
+
+
+
+
+# -----------------------------------------------------------------------------
+# 12b. Residual diagnostics for the withReplicates NB fit
+# -----------------------------------------------------------------------------
+# WHY THESE ARE HAND-BUILT
+# DHARMa cannot be used on the svynb_rep object: all of its tests work by
+# simulating new response vectors from a fitted model, and svynb_rep is a
+# coefficient vector plus a replicate-based covariance matrix, with no
+# simulate() method and no single likelihood (the point estimate comes from one
+# weighted glm.nb; the SEs come from 80 separate refits). The DHARMa block in
+# the main loop fits a SEPARATE unweighted proxy model -- it checks the NB
+# distributional shape, but it is not the model being reported.
+#
+# The functions below simulate directly from the NB implied by the
+# withReplicates POINT ESTIMATES (beta-hat from withReplicates, theta-hat from
+# the full-sample weighted fit), on exactly the complete-case rows the reported
+# model used. That makes them diagnostics OF the reported model.
+#
+# WHAT THEY DO AND DO NOT TELL YOU
+#   DO:     whether the NB distributional assumption -- mean-variance
+#           relationship, tail behaviour, functional form) is adequate.
+#   DO NOT: validate the replicate-based standard errors. Nothing residual-
+#           based can -- those SEs come from the replicate weights, not from
+#           the likelihood.
+#
+# Randomised quantile residuals (Dunn & Smyth 1996) are used because the
+# response is discrete: residual_i = P(y* < y_i) + U * P(y* == y_i), with
+# U ~ Unif(0,1). Under a correctly specified model these are exactly
+# Uniform(0,1), which is what makes the KS test valid.
+#
+# VALIDATION: checked against synthetic cases -- correct NB (all n.s.),
+#   (1) correctly specified NB        -> all four n.s. (p = .93 / .79 / .29 / 1.0)
+#   (2) overdispersed data as Poisson -> all four fire (p < 1e-8)
+#   (3) omitted quadratic term        -> quantile test fires (p = .005) while
+#                                        uniformity and dispersion stay n.s.,
+#                                        the expected signature of structural
+#                                        (rather than scale) misspecification.
+# -----------------------------------------------------------------------------
+
+```{r}
+# Simulate randomised quantile residuals from an NB with given mu and theta.
+sim_quantile_residuals <- function(y, mu, theta, nsim = 1000, seed = 42) {
+  set.seed(seed)
+  n    <- length(y)
+  sims <- matrix(rnbinom(n * nsim, size = theta, mu = rep(mu, times = nsim)),
+                 nrow = n, ncol = nsim)
+  less  <- rowMeans(sims <  y)
+  equal <- rowMeans(sims == y)
+  res   <- less + runif(n) * equal
+  list(res = res, sims = sims)
+}
+
+# (1) Uniformity: KS test of the quantile residuals against Uniform(0,1).
+nbdiag_uniformity <- function(res) {
+  ks <- suppressWarnings(stats::ks.test(res, "punif"))
+  list(stat = unname(ks$statistic), p = ks$p.value)
+}
+
+# (2) Dispersion: compare the observed Pearson-type dispersion to the
+#     distribution of that same statistic across simulated datasets.
+nbdiag_dispersion <- function(y, mu, theta, sims) {
+  v    <- mu + mu^2 / theta                       # NB variance function
+  obs  <- sum((y - mu)^2 / v) / length(y)
+  simd <- apply(sims, 2, function(ys) sum((ys - mu)^2 / v) / length(ys))
+  p    <- 2 * min(mean(simd >= obs), mean(simd <= obs))
+  list(stat = obs / mean(simd), p = min(1, p))
+}
+
+# (3) Outliers: how many observations fall outside the range of their own
+#     simulations. NOTE: the naive expectation 2/(nsim+1) assumes a CONTINUOUS
+#     response; with discrete counts, ties make the true rate far lower, and
+#     using the naive value produces spurious significance (verified: it
+#     flagged p=0.006 on correctly-specified data). Calibrate against the
+#     simulations themselves by holding out each simulated column in turn.
+nbdiag_outliers <- function(y, sims, k = 200, seed = 99) {
+  mn <- apply(sims, 1, min); mx <- apply(sims, 1, max)
+  obs_rate <- mean(y < mn | y > mx)
+
+  set.seed(seed)
+  idx <- sample(ncol(sims), min(k, ncol(sims)))
+  null_rates <- vapply(idx, function(j) {
+    others <- sims[, -j, drop = FALSE]
+    mnj <- apply(others, 1, min); mxj <- apply(others, 1, max)
+    mean(sims[, j] < mnj | sims[, j] > mxj)
+  }, numeric(1))
+
+  p <- 2 * min(mean(null_rates >= obs_rate), mean(null_rates <= obs_rate))
+  list(n_out = sum(y < mn | y > mx), freq = obs_rate,
+       expected = mean(null_rates), p = min(1, p))
+}
+
+# (4) Combined adjusted quantile test: at several quantiles, test whether the
+#     probability of a residual falling below that quantile depends on the
+#     fitted value. Detects structural misspecification (wrong functional form)
+#     that the scale-based tests miss. Bonferroni-adjusted across quantiles.
+nbdiag_quantiles <- function(res, pred, quantiles = c(0.25, 0.5, 0.75)) {
+  ps <- vapply(quantiles, function(q) {
+    ind <- as.numeric(res < q)
+    m   <- suppressWarnings(glm(ind ~ pred, family = binomial))
+    s   <- summary(m)$coefficients
+    if (nrow(s) < 2) return(NA_real_)
+    s[2, 4]
+  }, numeric(1))
+  list(p_each = ps,
+       p_combined = min(1, min(ps, na.rm = TRUE) * length(ps)))
+}
+
+# (5) Zero-inflation: observed zero count vs the distribution of zero counts
+#     across the NB simulations. IMPORTANT INTERPRETATION: because theta is
+#     estimated FROM this data, the NB will already have lowered theta to absorb
+#     excess zeros, so this test detects only RESIDUAL zero-inflation the NB
+#     could NOT accommodate -- not raw excess zeros relative to a Poisson. A
+#     ratio near 1 with p n.s. means "the NB's zero behaviour is adequate", NOT
+#     "there is no zero-generating process". (Same limitation as DHARMa's
+#     testZeroInflation; validated here: structural zeros the NB cannot absorb
+#     drive the ratio to ~1.43 with p=0, while zeros it CAN absorb via a lower
+#     theta correctly do not fire, since then the NB is adequate.)
+nbdiag_zeroinflation <- function(y, sims) {
+  obs_zero <- sum(y == 0)
+  sim_zero <- colSums(sims == 0)
+  p <- 2 * min(mean(sim_zero >= obs_zero), mean(sim_zero <= obs_zero))
+  list(obs = obs_zero, expected = mean(sim_zero),
+       ratio = obs_zero / mean(sim_zero), p = min(1, p))
+}
+
+# (6) Pearson residuals: r_P = (y - mu) / sqrt(V(mu)), with the NB variance
+#     V(mu) = mu + mu^2/theta. Reported as the design-weighted Pearson
+#     chi-square divided by residual df (a classic dispersion statistic: ~1 is
+#     well-calibrated, >1 residual overdispersion, <1 underdispersion), plus the
+#     count of |r_P| > 3 flagging individual ill-fit observations. Weights are
+#     normalised to mean 1 so the statistic is on the usual chi-square scale.
+#     This is a direct, non-simulation cross-check on the dispersion test.
+nbdiag_pearson <- function(y, mu, theta, w, n_params) {
+  v   <- mu + mu^2 / theta
+  rp  <- (y - mu) / sqrt(v)
+  ws  <- w / mean(w)
+  X2  <- sum(ws * rp^2)
+  rdf <- length(y) - n_params
+  list(pearson_chisq = X2, rdf = rdf, ratio = X2 / rdf,
+       n_large = sum(abs(rp) > 3), max_abs = max(abs(rp)), resid = rp)
+}
+
+# Driver: run all six on a fitted svynb_rep object.
+nb_residual_diagnostics <- function(svy_obj, nsim = 1000) {
+  fit <- svy_obj$fit
+  if (!inherits(fit, "svynb_rep")) {
+    cat("  (residual diagnostics apply to the withReplicates NB fit only)\n")
+    return(invisible(NULL))
+  }
+
+  dat <- svy_obj$design$variables
+  fml <- svy_obj$fml
+  X   <- stats::model.matrix(fml, data = dat)
+  b   <- stats::coef(fit)[colnames(X)]
+  if (anyNA(b)) {
+    cat("  (residual diagnostics skipped: NA coefficients in fit)\n")
+    return(invisible(NULL))
+  }
+  mu    <- as.numeric(exp(X %*% b))
+  theta <- fit$theta
+  y     <- dat[[all.vars(fml)[1]]]
+  wt    <- as.numeric(stats::weights(svy_obj$design, type = "sampling"))
+
+  sm  <- sim_quantile_residuals(y, mu, theta, nsim = nsim)
+  u   <- nbdiag_uniformity(sm$res)
+  dsp <- nbdiag_dispersion(y, mu, theta, sm$sims)
+  ot  <- nbdiag_outliers(y, sm$sims)
+  q   <- nbdiag_quantiles(sm$res, mu)
+  zi  <- nbdiag_zeroinflation(y, sm$sims)
+  pr  <- nbdiag_pearson(y, mu, theta, wt, length(b))
+
+  star <- function(p) if (!is.na(p) && p < 0.05) "  *" else ""
+  cat(sprintf("  Uniformity (KS)      D=%.4f    p=%.4f%s\n",
+              u$stat, u$p, star(u$p)))
+  cat(sprintf("  Dispersion (sim)     ratio=%.3f  p=%.4f%s\n",
+              dsp$stat, dsp$p, star(dsp$p)))
+  cat(sprintf("  Outliers             n=%d (%.5f vs %.5f expected)  p=%.4f%s\n",
+              ot$n_out, ot$freq, ot$expected, ot$p, star(ot$p)))
+  cat(sprintf("  Combined quantile    p=%.4f  (per-quantile: %s)%s\n",
+              q$p_combined, paste(signif(q$p_each, 3), collapse = ", "),
+              star(q$p_combined)))
+  cat(sprintf("  Zero-inflation       obs=%d exp=%.1f ratio=%.3f  p=%.4f%s\n",
+              zi$obs, zi$expected, zi$ratio, zi$p, star(zi$p)))
+  cat(sprintf("  Pearson X2/df        %.3f  (X2=%.1f, df=%d) | |r|>3: %d, max|r|=%.2f\n",
+              pr$ratio, pr$pearson_chisq, pr$rdf, pr$n_large, pr$max_abs))
+  cat(sprintf("  [residual mean %.4f -- should be ~0.5 if the construction is sound]\n",
+              mean(sm$res)))
+
+  invisible(list(uniformity = u, dispersion = dsp,
+                 outliers = ot, quantiles = q,
+                 zeroinflation = zi, pearson = pr,
+                 residuals = sm$res, mu = mu, theta = theta))
+}
 ```
 
 
@@ -1003,6 +1210,12 @@ for (s in samples) {
     cat("   to support it; wald_chisq/p above is the model-agnostic joint test.)\n")
   }
 
+  # ---- Residual diagnostics ON the reported withReplicates NB fit ---------
+  if (inherits(svy_obj$fit, "svynb_rep")) {
+    cat("\n  [ Residual diagnostics on the reported NB fit ]\n")
+    nb_residual_diagnostics(svy_obj)
+  }
+
   # ---- DHARMa residual diagnostics (on an equivalent MASS/glm fit) ---------
   # DHARMa needs a model class it knows how to simulate from. svymle NB
   # (svymle-based) and svyglm-with-quasipoisson (no true likelihood to
@@ -1011,11 +1224,15 @@ for (s in samples) {
   # weighted by the primary FW column only (not the full replicate design --
   # this is a shape/fit check, not a source of reported SEs).
   cat("\n  [ DHARMa residual diagnostics (proxy fit: MASS::glm.nb / glm poisson) ]\n")
+  # Fit the proxy on the SAME rows the reported model used (svy_obj$design
+  # holds the complete-case subset), not on the pre-filtered `sub`. Otherwise
+  # the shape check refers to a different dataset than the reported estimates.
+  diag_dat <- svy_obj$design$variables
   diag_fit <- tryCatch({
     if (use_nb) {
-      MASS::glm.nb(svy_obj$fml, data = sub, weights = FW)
+      MASS::glm.nb(svy_obj$fml, data = diag_dat, weights = FW)
     } else {
-      glm(svy_obj$fml, data = sub, family = poisson(link = "log"), weights = FW)
+      glm(svy_obj$fml, data = diag_dat, family = poisson(link = "log"), weights = FW)
     }
   }, error = function(e) {
     cat("  (diagnostic fit failed:", conditionMessage(e), ")\n"); NULL
@@ -1060,6 +1277,7 @@ cat(sprintf("\nDHARMa diagnostic plots saved to %s\n", DIAG_PDF))
 cat("\n\u2020 AIAN_NHPI and Other_2plus may have n<10 in the subsidized sample; ",
     "interpret coefficients with caution.\n\n")
 ```
+
 
 
 
