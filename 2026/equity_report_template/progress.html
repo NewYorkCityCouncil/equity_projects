@@ -1,0 +1,24 @@
+<div id="reading-progress"></div>
+
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+
+  const progressBar = document.getElementById("reading-progress");
+
+  window.addEventListener("scroll", function () {
+
+    const scrollTop = window.scrollY;
+
+    const documentHeight =
+      document.documentElement.scrollHeight -
+      window.innerHeight;
+
+    const scrollPercent =
+      (scrollTop / documentHeight) * 100;
+
+    progressBar.style.width = scrollPercent + "%";
+
+  });
+
+});
+</script>
