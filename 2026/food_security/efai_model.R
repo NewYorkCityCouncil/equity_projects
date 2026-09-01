@@ -37,9 +37,11 @@ food_insecurity_nta <- food_insecurity_raw %>%
 ################################################################################
 
 nyc_counties <- c("Bronx", "Kings", "New York", "Queens", "Richmond")
-census_vars <- c(total_pop     = "B03002_001", white_nh      = "B03002_003", 
-                 black_nh      = "B03002_004", asian_nh      = "B03002_006",
-                 hispanic      = "B03002_012", median_income = "B19013_001",
+census_vars <- c(total_pop = "B03002_001", white_nh = "B03002_003", 
+                 black_nh = "B03002_004", asian_nh = "B03002_006",
+                 native_nh = "B03002_005", pacific_nh = "B03002_007", 
+                 other_nh = "B03002_008", two_nh = "B03002_009",
+                 hispanic = "B03002_012", median_income = "B19013_001",
                  poverty_total = "B17001_001", poverty_below = "B17001_002")
 
 nyc_tract_demographics_raw <- get_acs(
@@ -59,6 +61,10 @@ nyc_tract_demographics_raw = nyc_tract_demographics_raw %>%
   mutate(perc_white = white_nhE/total_popE*100, 
          perc_black = black_nhE/total_popE*100, 
          perc_asian = asian_nhE/total_popE*100, 
+         perc_native = native_nhE/total_popE*100, 
+         perc_pacific = pacific_nhE/total_popE*100, 
+         perc_other = other_nhE/total_popE*100, 
+         perc_two = two_nhE/total_popE*100, 
          perc_hisp = hispanicE/total_popE*100, 
          perc_pov = poverty_belowE, na.rm=T/poverty_totalE, na.rm=T*100)
 
@@ -114,18 +120,31 @@ combined = efai %>% dplyr::select(GEOID, index) %>%
          fastfood_10k = `Fast Food`/total_popE*10000, 
          supply_gap_lbs_natural = -supply_gap_lbs, 
          supply_gap_lbs_10k = -supply_gap_lbs/10000, 
-         majority_race = case_when(perc_white > perc_black & perc_white > perc_asian ~ "white", 
-                                   perc_black > perc_white & perc_black > perc_asian ~ "black", 
-                                   perc_asian > perc_white & perc_asian > perc_black ~ "asian"), 
-         majority_eth = case_when(perc_white > perc_black & perc_white > perc_asian & perc_white > perc_hisp ~ "white", 
-                                   perc_black > perc_white & perc_black > perc_asian & perc_black > perc_hisp ~ "black", 
-                                   perc_asian > perc_white & perc_asian > perc_black & perc_asian > perc_hisp  ~ "asian", 
-                                   perc_hisp > perc_white & perc_hisp > perc_black & perc_hisp > perc_asian  ~ "hisp"), 
+         max_race = pmax(perc_white, perc_black, perc_asian, perc_native, 
+                        perc_pacific, perc_other, perc_two, pna.rm = TRUE),
+         max_eth = pmax(perc_white, perc_black, perc_asian, perc_native, 
+                         perc_pacific, perc_other, perc_two, perc_hisp, na.rm = TRUE),
+         majority_race = case_when(perc_white == max_race ~ "white", 
+                                   perc_black == max_race ~ "black", 
+                                   perc_asian == max_race ~ "asian", 
+                                   perc_native == max_race ~ "native", 
+                                   perc_pacific == max_race ~ "pacific", 
+                                   perc_other == max_race ~ "other", 
+                                   perc_two == max_race ~ "two"), 
+         majority_eth = case_when(perc_white == max_eth ~ "white", 
+                                  perc_black == max_eth ~ "black", 
+                                  perc_asian == max_eth ~ "asian", 
+                                  perc_native == max_eth ~ "native", 
+                                  perc_pacific == max_eth ~ "pacific", 
+                                  perc_other == max_eth ~ "other", 
+                                  perc_two == max_eth ~ "two", 
+                                  perc_hisp == max_eth ~ "hisp"), 
          income_quantile = ecdf(median_incomeE)(median_incomeE),
          income_tercile = factor(ntile(median_incomeE, 3), labels = c("low", "mid", "high")),
          majority_eth = relevel(factor(majority_eth), ref = "white"), 
          majority_race = relevel(factor(majority_race), ref = "white"), 
-         pop_1k = total_popE/1000) %>% 
+         pop_1k = total_popE/1000,
+         county = substr(GEOID, 1, 5)) %>% 
   filter(total_popE > 0)
 
 
@@ -133,23 +152,32 @@ combined = efai %>% dplyr::select(GEOID, index) %>%
 # model
 ################################################################################
 
+# 005 = Bronx, 047 = bk, 061 = mn, 081 = qn, 085 = si
+
 corrplot(cor(combined %>% 
                select(total_popE, perc_white, perc_asian, perc_black, perc_hisp, 
+                      perc_asian, perc_native, perc_pacific, perc_other, perc_two,
                       food_insecure_percentage, unemployment_rate, supply_gap_lbs_natural,
-                      grocery_10k, bodega_10k, vices_10k, fastfood_10k)), 
-         method = 'number')
+                      grocery_10k, bodega_10k, vices_10k, fastfood_10k), use="c"), 
+         method = 'number', tl.col = "black", number.cex=0.7)
 
 # how much access to emergency food is there (+ = more access)
-summary(lm(index ~ total_popE + perc_black + perc_hisp + 
+summary(lm(index ~ total_popE + perc_black + perc_hisp + perc_asian + perc_two + 
+             perc_other + perc_native + perc_pacific +
+             food_insecure_percentage + supply_gap_lbs_natural + county, 
+           data = combined))
+
+# how much access to emergency food is there (+ = more access)
+summary(lm(index ~ total_popE + perc_black + perc_hisp + perc_asian +
              food_insecure_percentage + supply_gap_lbs_natural, 
            data = combined))
 
 # does the area majority impact the food insecurity index? (+ = more access)
-summary(lm(index ~ total_popE + majority_eth + food_insecure_percentage + supply_gap_lbs_natural, 
+summary(lm(index ~ total_popE + majority_eth + food_insecure_percentage + supply_gap_lbs_natural + county, 
            data = combined))
 
 # do different majority areas have different responses to food insecurity?
-summary(lm(index ~ total_popE + majority_eth*food_insecure_percentage + supply_gap_lbs_natural, 
+summary(lm(index ~ total_popE + majority_eth*food_insecure_percentage + supply_gap_lbs_natural + county, 
            data = combined))
 
 
@@ -173,12 +201,12 @@ summary(models)
 ################################################################################
 
 # run models
-formulas = c("index ~ pop_1k + perc_black + perc_hisp + perc_asian + food_insecure_percentage + supply_gap_lbs_10k",
-             "index ~ pop_1k + perc_black + perc_hisp + food_insecure_percentage + supply_gap_lbs_10k",
-             "index ~ pop_1k + majority_eth + food_insecure_percentage + supply_gap_lbs_10k",
-             "index ~ pop_1k + majority_eth*food_insecure_percentage + supply_gap_lbs_10k",
-             "index ~ pop_1k + majority_eth*income_tercile + supply_gap_lbs_10k",
-             "index ~ pop_1k + majority_eth*supply_gap_lbs_10k")
+formulas = c("index ~ pop_1k + perc_black + perc_hisp + perc_asian + food_insecure_percentage + supply_gap_lbs_10k + county",
+             "index ~ pop_1k + perc_black + perc_hisp + food_insecure_percentage + supply_gap_lbs_10k + county",
+             "index ~ pop_1k + majority_eth + food_insecure_percentage + supply_gap_lbs_10k + county",
+             #"index ~ pop_1k + majority_eth*food_insecure_percentage + supply_gap_lbs_10k + county",
+             "index ~ pop_1k + majority_eth*income_tercile + supply_gap_lbs_10k + county")
+             #"index ~ pop_1k + majority_eth*supply_gap_lbs_10k + county")
 models = lapply(formulas, function(f) lm(as.formula(f), data = combined))
 names(models) = formulas  # use the formula string as the model label
 
@@ -215,3 +243,4 @@ ggplot(coef_df, aes(x = fct_rev(term), y = estimate, color = model, group = mode
   theme(panel.grid.minor = element_blank(), legend.position = "bottom") +
   scale_alpha_manual(values = c(`TRUE` = 1, `FALSE` = 0.35))
 
+# 005 = Bronx, 047 = bk, 061 = mn, 081 = qn, 085 = si

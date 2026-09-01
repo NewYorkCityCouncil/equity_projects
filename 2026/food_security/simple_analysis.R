@@ -1,9 +1,10 @@
-
+source("../../../tokens.R")
 library(tidyverse)
 library(tidycensus)
 library(sf)
 library(jsonlite)
 library(readxl)
+census_api_key(census_key)
 
 ################################################################################
 # read food insecurity data
