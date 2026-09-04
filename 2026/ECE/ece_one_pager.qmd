@@ -33,11 +33,11 @@ dt[
 ]
 
 race_categories <- c(
-  "White",
-  "Black",
-  "Hispanic",
-  "Asian",
-  "Other / 2+"
+  "White NH",
+  "Black NH",
+  "Hispanic/Latino",
+  "AAPI NH",
+  "AIAN/NHPI/Other/2+ NH"
 )
 
 dt[
@@ -92,9 +92,9 @@ prep_results <- function(model, outcome) {
       percent_change_low = 100 * (exp(conf.low) - 1),
       percent_change_high = 100 * (exp(conf.high) - 1),
       term_label = fcase(
-        term == "pct_hispanic10", "Hispanic",
-        term == "pct_black10", "Black",
-        term == "pct_asian10", "Asian",
+        term == "pct_hispanic10", "Hispanic/Latino",
+        term == "pct_black10", "Black NH",
+        term == "pct_asian10", "AAPI NH",
         term == "median_inc_10k", "Median household income",
         default = term
       )
@@ -115,7 +115,7 @@ largest_adjusted <- occupied_race_results[which.max(percent_change)]
 snapshot <- data.table(
   Metric = c(
     "PUMAs",
-    "Preschool-age children",
+    "Children ages 3-4 (2023 DOHMH vital statistics estimate)",
     "Total ECE seats",
     "Occupied ECE seats",
     "Mean total seats per child",
@@ -175,7 +175,7 @@ coef_plot <- ggplot(
   scale_color_manual(values = pal[c(2, 6)]) +
   labs(
     title = "Adjusted association with ECE seats per child",
-    subtitle = "Estimated change for each 10 percentage-point increase; White is the reference composition",
+    subtitle = "Estimated change for each 10 percentage-point increase; White NH is the reference composition",
     x = "Percent change",
     y = NULL,
     color = NULL
@@ -198,7 +198,7 @@ map_access <- ggplot(map_dt) +
     labels = number_format(accuracy = 0.01),
     name = "Occupied seats\nper child"
   ) +
-  labs(title = "Occupied ECE seats per preschool-age child") +
+  labs(title = "Occupied ECE seats per child ages 3-4") +
   theme_void(base_size = 12) +
   theme(
     plot.title = element_text(face = "bold", hjust = 0.5),
@@ -209,11 +209,11 @@ map_plurality <- ggplot(map_dt) +
   geom_sf(aes(fill = plurality_group), color = "white", linewidth = 0.12) +
   scale_fill_manual(
     values = c(
-      "White" = warm_pal[1],
-      "Black" = warm_pal[2],
-      "Hispanic" = warm_pal[3],
-      "Asian" = warm_pal[4],
-      "Other / 2+" = warm_pal[5]
+      "White NH" = warm_pal[1],
+      "Black NH" = warm_pal[2],
+      "Hispanic/Latino" = warm_pal[3],
+      "AAPI NH" = warm_pal[4],
+      "AIAN/NHPI/Other/2+ NH" = warm_pal[5]
     ),
     name = NULL,
     drop = TRUE
@@ -255,17 +255,17 @@ Photo: <a href="https://www.flickr.com/photos/nyccouncil/53774000950/">New York 
 
 ::: {.key-finding}
 <span class="finding-arrow">-></span>
-<p>ECE access varies sharply across PUMAs: occupied seats range from `r number(min(dt$occupied_seats_per_child, na.rm = TRUE), accuracy = 0.01)` to `r number(max(dt$occupied_seats_per_child, na.rm = TRUE), accuracy = 0.01)` per preschool-age child.</p>
+<p>ECE access varies sharply across PUMAs: occupied seats range from `r number(min(dt$occupied_seats_per_child, na.rm = TRUE), accuracy = 0.01)` to `r number(max(dt$occupied_seats_per_child, na.rm = TRUE), accuracy = 0.01)` per child ages 3-4.</p>
 :::
 
 ::: {.key-finding}
 <span class="finding-arrow">-></span>
-<p>A 10 percentage-point increase in Asian population share is associated with `r number(largest_adjusted$percent_change, accuracy = 0.1)`% more occupied seats per preschool-age child after accounting for median household income.</p>
+<p>A 10 percentage-point increase in AAPI NH population share is associated with `r number(largest_adjusted$percent_change, accuracy = 0.1)`% more occupied seats per child ages 3-4 after accounting for median household income.</p>
 :::
 
 ::: {.key-finding}
 <span class="finding-arrow">-></span>
-<p>The adjusted models do not show a clear positive association for Hispanic population share; Black estimates are positive but less precise.</p>
+<p>The adjusted models do not show a clear positive association for Hispanic/Latino population share; Black NH estimates are positive but less precise.</p>
 :::
 
 :::
@@ -281,6 +281,7 @@ Photo: <a href="https://www.flickr.com/photos/nyccouncil/53774000950/">New York 
 <a href="#what-we-found">What We Found</a>
 <a href="#observed-disparities">Observed Disparities</a>
 <a href="#adjusted-models">Adjusted Models</a>
+<a href="#methods">Methods</a>
 <a href="#data-snapshot">Data Snapshot</a>
 <a href="#policy-implications">Policy Implications</a>
 <a href="#limitations">Limitations</a>
@@ -294,19 +295,19 @@ Photo: <a href="https://www.flickr.com/photos/nyccouncil/53774000950/">New York 
 
 Access to early childhood education (ECE) can depend on where a family lives. A shortage of seats in a neighborhood can make it harder for families to find care nearby, even when seats are available elsewhere in the city.
 
-This one-pager examines whether ECE access varies by neighborhood racial and ethnic composition and household income. The outcomes are measured at the Public Use Microdata Area (PUMA) level as **licensed ECE seats per preschool-age child ages 3-4** and **occupied ECE seats per preschool-age child**.
+This one-pager examines whether ECE access varies by neighborhood racial and ethnic composition and household income. The outcomes are measured at the Public Use Microdata Area (PUMA) level as **licensed ECE seats per child ages 3-4** and **occupied ECE seats per child ages 3-4**. The child denominator is estimated from 2023 New York City Department of Health and Mental Hygiene (DOHMH) vital statistics birth data.
 
-The racial and ethnic categories match the housing quality analysis: **White**, **Black**, **Hispanic**, **Asian**, and **Other / 2+**. The ACS data build keeps `AIAN_NHPI` and `Other_2plus` as separate analytic groups and combines them as **Other / 2+** for public-facing descriptive tables and maps.
+Race and ethnicity are mutually exclusive categories based on the U.S. Census Bureau's American Community Survey Public Use Microdata Sample (ACS PUMS): **White NH**, **Black NH**, **Hispanic/Latino**, **AAPI NH**, and **AIAN/NHPI/Other/2+ NH**. The combined AIAN/NHPI/Other/2+ NH group is used in public-facing PUMA composition tables and maps because the separate groups are small at this geography.
 
 ## What We Found {#what-we-found}
 
-Neighborhoods with larger Asian population shares have the strongest positive adjusted association with ECE access. In the occupied-seat model, a 10 percentage-point increase in Asian population share is associated with **`r number(largest_adjusted$percent_change, accuracy = 0.1)`% more occupied seats per preschool-age child** after accounting for median household income.
+Neighborhoods with larger AAPI NH population shares have the strongest positive adjusted association with ECE access. In the occupied-seat model, a 10 percentage-point increase in AAPI NH population share is associated with **`r number(largest_adjusted$percent_change, accuracy = 0.1)`% more occupied seats per child ages 3-4** after accounting for median household income.
 
-Black population share is also positively associated with seats per child, but the adjusted estimates are smaller and less precise. Hispanic population share is not meaningfully associated with higher seat access after adjustment in these models.
+Black NH population share is also positively associated with seats per child, but the adjusted estimates are smaller and less precise. Hispanic/Latino population share is not meaningfully associated with higher seat access after adjustment in these models.
 
 ## What disparities do we observe? {#observed-disparities}
 
-Descriptively, ECE access varies sharply across PUMAs. The citywide mean is `r number(mean(dt$occupied_seats_per_child, na.rm = TRUE), accuracy = 0.01)` occupied seats per preschool-age child, while the PUMA-level range runs from `r number(min(dt$occupied_seats_per_child, na.rm = TRUE), accuracy = 0.01)` to `r number(max(dt$occupied_seats_per_child, na.rm = TRUE), accuracy = 0.01)`.
+Descriptively, ECE access varies sharply across PUMAs. The citywide mean is `r number(mean(dt$occupied_seats_per_child, na.rm = TRUE), accuracy = 0.01)` occupied seats per child ages 3-4, while the PUMA-level range runs from `r number(min(dt$occupied_seats_per_child, na.rm = TRUE), accuracy = 0.01)` to `r number(max(dt$occupied_seats_per_child, na.rm = TRUE), accuracy = 0.01)`.
 
 ```{r}
 #| label: map-access
@@ -331,12 +332,12 @@ desc_table <- composition_summary[
   .(
     `Largest group` = plurality_group,
     PUMAs = pumas,
-    `Mean total seats per child` = ifelse(
+    `Mean total seats per child ages 3-4` = ifelse(
       is.na(mean_total_seats_per_child),
       "n/a",
       number(mean_total_seats_per_child, accuracy = 0.01)
     ),
-    `Mean occupied seats per child` = ifelse(
+    `Mean occupied seats per child ages 3-4` = ifelse(
       is.na(mean_occupied_seats_per_child),
       "n/a",
       number(mean_occupied_seats_per_child, accuracy = 0.01)
@@ -348,7 +349,7 @@ knitr::kable(desc_table)
 
 ## Do those disparities persist after accounting for relevant factors? {#adjusted-models}
 
-The adjusted models estimate log seats per child as a function of race/ethnicity composition and median household income. Coefficients are converted to percent changes, so each race/ethnicity estimate represents the modeled change associated with a 10 percentage-point increase in the population share. White is the omitted reference composition.
+The adjusted models estimate log seats per child ages 3-4 as a function of race/ethnicity composition and median household income. Coefficients are converted to percent changes, so each race/ethnicity estimate represents the modeled change associated with a 10 percentage-point increase in the population share. White NH is the omitted reference composition.
 
 ```{r}
 #| label: adjusted-coef-plot
@@ -379,6 +380,16 @@ knitr::kable(results_table)
 
 The adjusted results suggest that the descriptive differences are not explained entirely by median household income. However, the model is ecological: it estimates associations across neighborhoods, not individual child participation or household-level access.
 
+## Methods {#methods}
+
+This analysis combines publicly available information on ECE seats, child population, neighborhood demographics, household income, and PUMA boundaries. ECE capacity and vacancy measures come from New York City Public Schools/Department of Education reporting on early childhood education seats. The number of children ages 3-4 is estimated from 2023 DOHMH vital statistics birth data, using two birth cohorts as a proxy for the preschool-age population. Neighborhood race/ethnicity and household income measures come from the 2020-2024 ACS 5-year PUMS, and PUMA boundaries come from NYC Department of City Planning.
+
+All measures are summarized at the PUMA level. PUMAs are large statistical areas used for Census microdata; in New York City, the 55 PUMAs approximate community districts or combinations of community districts. The analysis does not use individual child records.
+
+Race and ethnicity are reported as mutually exclusive groups: White NH, Black NH, Hispanic/Latino, AAPI NH, and AIAN/NHPI/Other/2+ NH. AAPI NH is based on residents who identify as non-Hispanic Asian alone in the ACS. AIAN/NHPI/Other/2+ NH combines smaller non-Hispanic race groups for public reporting at this geography.
+
+Total access is defined as licensed ECE seats divided by the estimated number of children ages 3-4. Occupied access is defined as licensed seats minus vacant seats, divided by the estimated number of children ages 3-4. The adjusted results compare PUMAs with different racial and ethnic composition after accounting for median household income. These models describe neighborhood-level associations; they do not measure whether individual families were offered, accepted, or used a specific seat.
+
 ## Data Snapshot {#data-snapshot}
 
 ```{r}
@@ -386,11 +397,11 @@ The adjusted results suggest that the descriptive differences are not explained 
 knitr::kable(snapshot)
 ```
 
-**Data sources:** DOE ECE seat and vacancy data aggregated to PUMA, preschool-age child counts, and 2024 PUMA demographic and income measures in `data/lm_model_data.csv`; PUMA geography in `data/puma_nyc.geojson`.
+**Public data sources:** [New York City Public Schools/Department of Education early childhood education seat and enrollment reporting](https://infohub.nyced.org/reports/government-reports/student-applications-admissions-and-offers); [NYC DOHMH Public Use Birth Datasets, 2023](https://www.nyc.gov/site/doh/data/data-sets/public-use-birth-datasets.page); [U.S. Census Bureau 2020-2024 ACS 5-year PUMS](https://www.census.gov/programs-surveys/acs/microdata/documentation/2024.html); and [NYC Department of City Planning 2020 Public Use Microdata Areas](https://data.cityofnewyork.us/City-Government/2020-Public-Use-Microdata-Areas-PUMAs-/pikk-p9nv).
 
 ## Policy Implications {#policy-implications}
 
-Policy responses should focus on both **capacity** and **use**. Neighborhoods with low occupied seats per preschool-age child may need additional seats, outreach to families, language access, transportation support, or schedule models that better match caregiver needs. Areas where seats exist but occupancy is lower may require different interventions than areas with low total capacity.
+Policy responses should focus on both **capacity** and **use**. Neighborhoods with low occupied seats per child ages 3-4 may need additional seats, outreach to families, language access, transportation support, or schedule models that better match caregiver needs. Areas where seats exist but occupancy is lower may require different interventions than areas with low total capacity.
 
 Equity monitoring should track access by geography and racial/ethnic composition together, because citywide averages can obscure neighborhood-level mismatches between child population, available seats, and actual enrollment.
 

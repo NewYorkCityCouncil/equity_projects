@@ -146,8 +146,8 @@ document.addEventListener("DOMContentLoaded", function () {
       <!-- user-provided yaml closeread style options -->
       <style>
         :root {
-          --cr-narrative-background-color-overlay: black;
---cr-narrative-text-color-overlay: #e2e2e2;
+          --cr-narrative-text-color-overlay: #e2e2e2;
+--cr-narrative-background-color-overlay: black;
         }
       </style>
     
@@ -204,19 +204,19 @@ KEY FINDINGS
 <div class="key-finding">
 <span class="finding-arrow">-&gt;</span>
 <p>
-ECE access varies sharply across PUMAs: occupied seats range from 0.23 to 2.10 per preschool-age child.
+ECE access varies sharply across PUMAs: occupied seats range from 0.23 to 2.10 per child ages 3-4.
 </p>
 </div>
 <div class="key-finding">
 <span class="finding-arrow">-&gt;</span>
 <p>
-A 10 percentage-point increase in Asian population share is associated with 23.0% more occupied seats per preschool-age child after accounting for median household income.
+A 10 percentage-point increase in AAPI NH population share is associated with 23.0% more occupied seats per child ages 3-4 after accounting for median household income.
 </p>
 </div>
 <div class="key-finding">
 <span class="finding-arrow">-&gt;</span>
 <p>
-The adjusted models do not show a clear positive association for Hispanic population share; Black estimates are positive but less precise.
+The adjusted models do not show a clear positive association for Hispanic/Latino population share; Black NH estimates are positive but less precise.
 </p>
 </div>
 </div>
@@ -226,24 +226,24 @@ The adjusted models do not show a clear positive association for Hispanic popula
 In this report
 </p>
 <nav>
-<a href="#overview">Overview</a> <a href="#what-we-found">What We Found</a> <a href="#observed-disparities">Observed Disparities</a> <a href="#adjusted-models">Adjusted Models</a> <a href="#data-snapshot">Data Snapshot</a> <a href="#policy-implications">Policy Implications</a> <a href="#limitations">Limitations</a>
+<a href="#overview">Overview</a> <a href="#what-we-found">What We Found</a> <a href="#observed-disparities">Observed Disparities</a> <a href="#adjusted-models">Adjusted Models</a> <a href="#methods">Methods</a> <a href="#data-snapshot">Data Snapshot</a> <a href="#policy-implications">Policy Implications</a> <a href="#limitations">Limitations</a>
 </nav>
 </div>
 <div class="article-column">
 <section id="overview" class="level2">
 <h2 class="anchored" data-anchor-id="overview">Overview</h2>
 <p>Access to early childhood education (ECE) can depend on where a family lives. A shortage of seats in a neighborhood can make it harder for families to find care nearby, even when seats are available elsewhere in the city.</p>
-<p>This one-pager examines whether ECE access varies by neighborhood racial and ethnic composition and household income. The outcomes are measured at the Public Use Microdata Area (PUMA) level as <strong>licensed ECE seats per preschool-age child ages 3-4</strong> and <strong>occupied ECE seats per preschool-age child</strong>.</p>
-<p>The racial and ethnic categories match the housing quality analysis: <strong>White</strong>, <strong>Black</strong>, <strong>Hispanic</strong>, <strong>Asian</strong>, and <strong>Other / 2+</strong>. The ACS data build keeps <code>AIAN_NHPI</code> and <code>Other_2plus</code> as separate analytic groups and combines them as <strong>Other / 2+</strong> for public-facing descriptive tables and maps.</p>
+<p>This one-pager examines whether ECE access varies by neighborhood racial and ethnic composition and household income. The outcomes are measured at the Public Use Microdata Area (PUMA) level as <strong>licensed ECE seats per child ages 3-4</strong> and <strong>occupied ECE seats per child ages 3-4</strong>. The child denominator is estimated from 2023 New York City Department of Health and Mental Hygiene (DOHMH) vital statistics birth data.</p>
+<p>Race and ethnicity are mutually exclusive categories based on the U.S. Census Bureau’s American Community Survey Public Use Microdata Sample (ACS PUMS): <strong>White NH</strong>, <strong>Black NH</strong>, <strong>Hispanic/Latino</strong>, <strong>AAPI NH</strong>, and <strong>AIAN/NHPI/Other/2+ NH</strong>. The combined AIAN/NHPI/Other/2+ NH group is used in public-facing PUMA composition tables and maps because the separate groups are small at this geography.</p>
 </section>
 <section id="what-we-found" class="level2">
 <h2 class="anchored" data-anchor-id="what-we-found">What We Found</h2>
-<p>Neighborhoods with larger Asian population shares have the strongest positive adjusted association with ECE access. In the occupied-seat model, a 10 percentage-point increase in Asian population share is associated with <strong>23.0% more occupied seats per preschool-age child</strong> after accounting for median household income.</p>
-<p>Black population share is also positively associated with seats per child, but the adjusted estimates are smaller and less precise. Hispanic population share is not meaningfully associated with higher seat access after adjustment in these models.</p>
+<p>Neighborhoods with larger AAPI NH population shares have the strongest positive adjusted association with ECE access. In the occupied-seat model, a 10 percentage-point increase in AAPI NH population share is associated with <strong>23.0% more occupied seats per child ages 3-4</strong> after accounting for median household income.</p>
+<p>Black NH population share is also positively associated with seats per child, but the adjusted estimates are smaller and less precise. Hispanic/Latino population share is not meaningfully associated with higher seat access after adjustment in these models.</p>
 </section>
 <section id="observed-disparities" class="level2">
 <h2 class="anchored" data-anchor-id="observed-disparities">What disparities do we observe?</h2>
-<p>Descriptively, ECE access varies sharply across PUMAs. The citywide mean is 0.58 occupied seats per preschool-age child, while the PUMA-level range runs from 0.23 to 2.10.</p>
+<p>Descriptively, ECE access varies sharply across PUMAs. The citywide mean is 0.58 occupied seats per child ages 3-4, while the PUMA-level range runs from 0.23 to 2.10.</p>
 <div class="cell">
 <div class="cell-output-display">
 <div>
@@ -267,40 +267,40 @@ In this report
 <div class="cell-output-display">
 <table class="caption-top table table-sm table-striped small">
 <colgroup>
-<col style="width: 18%">
-<col style="width: 7%">
-<col style="width: 35%">
-<col style="width: 38%">
+<col style="width: 16%">
+<col style="width: 6%">
+<col style="width: 37%">
+<col style="width: 40%">
 </colgroup>
 <thead>
 <tr class="header">
 <th style="text-align: left;">Largest group</th>
 <th style="text-align: right;">PUMAs</th>
-<th style="text-align: left;">Mean total seats per child</th>
-<th style="text-align: left;">Mean occupied seats per child</th>
+<th style="text-align: left;">Mean total seats per child ages 3-4</th>
+<th style="text-align: left;">Mean occupied seats per child ages 3-4</th>
 </tr>
 </thead>
 <tbody>
 <tr class="odd">
-<td style="text-align: left;">White</td>
+<td style="text-align: left;">White NH</td>
 <td style="text-align: right;">21</td>
 <td style="text-align: left;">0.67</td>
 <td style="text-align: left;">0.51</td>
 </tr>
 <tr class="even">
-<td style="text-align: left;">Black</td>
+<td style="text-align: left;">Black NH</td>
 <td style="text-align: right;">11</td>
 <td style="text-align: left;">0.81</td>
 <td style="text-align: left;">0.56</td>
 </tr>
 <tr class="odd">
-<td style="text-align: left;">Hispanic</td>
+<td style="text-align: left;">Hispanic/Latino</td>
 <td style="text-align: right;">18</td>
 <td style="text-align: left;">0.75</td>
 <td style="text-align: left;">0.57</td>
 </tr>
 <tr class="even">
-<td style="text-align: left;">Asian</td>
+<td style="text-align: left;">AAPI NH</td>
 <td style="text-align: right;">5</td>
 <td style="text-align: left;">1.20</td>
 <td style="text-align: left;">0.99</td>
@@ -312,7 +312,7 @@ In this report
 </section>
 <section id="adjusted-models" class="level2">
 <h2 class="anchored" data-anchor-id="adjusted-models">Do those disparities persist after accounting for relevant factors?</h2>
-<p>The adjusted models estimate log seats per child as a function of race/ethnicity composition and median household income. Coefficients are converted to percent changes, so each race/ethnicity estimate represents the modeled change associated with a 10 percentage-point increase in the population share. White is the omitted reference composition.</p>
+<p>The adjusted models estimate log seats per child ages 3-4 as a function of race/ethnicity composition and median household income. Coefficients are converted to percent changes, so each race/ethnicity estimate represents the modeled change associated with a 10 percentage-point increase in the population share. White NH is the omitted reference composition.</p>
 <div class="cell">
 <div class="cell-output-display">
 <div>
@@ -344,42 +344,42 @@ In this report
 <tbody>
 <tr class="odd">
 <td style="text-align: left;">Total seats per child</td>
-<td style="text-align: left;">Hispanic</td>
+<td style="text-align: left;">Hispanic/Latino</td>
 <td style="text-align: left;">0.5</td>
 <td style="text-align: left;">-6.3% to 7.8%</td>
 <td style="text-align: left;">0.879</td>
 </tr>
 <tr class="even">
 <td style="text-align: left;">Total seats per child</td>
-<td style="text-align: left;">Black</td>
+<td style="text-align: left;">Black NH</td>
 <td style="text-align: left;">6.5</td>
 <td style="text-align: left;">-0.4% to 13.9%</td>
 <td style="text-align: left;">0.065</td>
 </tr>
 <tr class="odd">
 <td style="text-align: left;">Total seats per child</td>
-<td style="text-align: left;">Asian</td>
+<td style="text-align: left;">AAPI NH</td>
 <td style="text-align: left;">20.2</td>
 <td style="text-align: left;">8.9% to 32.8%</td>
 <td style="text-align: left;">&lt;0.001</td>
 </tr>
 <tr class="even">
 <td style="text-align: left;">Occupied seats per child</td>
-<td style="text-align: left;">Hispanic</td>
+<td style="text-align: left;">Hispanic/Latino</td>
 <td style="text-align: left;">1.8</td>
 <td style="text-align: left;">-4.8% to 8.9%</td>
 <td style="text-align: left;">0.596</td>
 </tr>
 <tr class="odd">
 <td style="text-align: left;">Occupied seats per child</td>
-<td style="text-align: left;">Black</td>
+<td style="text-align: left;">Black NH</td>
 <td style="text-align: left;">5.2</td>
 <td style="text-align: left;">-1.3% to 12.2%</td>
 <td style="text-align: left;">0.117</td>
 </tr>
 <tr class="even">
 <td style="text-align: left;">Occupied seats per child</td>
-<td style="text-align: left;">Asian</td>
+<td style="text-align: left;">AAPI NH</td>
 <td style="text-align: left;">23.0</td>
 <td style="text-align: left;">11.8% to 35.2%</td>
 <td style="text-align: left;">&lt;0.001</td>
@@ -389,6 +389,13 @@ In this report
 </div>
 </div>
 <p>The adjusted results suggest that the descriptive differences are not explained entirely by median household income. However, the model is ecological: it estimates associations across neighborhoods, not individual child participation or household-level access.</p>
+</section>
+<section id="methods" class="level2">
+<h2 class="anchored" data-anchor-id="methods">Methods</h2>
+<p>This analysis combines publicly available information on ECE seats, child population, neighborhood demographics, household income, and PUMA boundaries. ECE capacity and vacancy measures come from New York City Public Schools/Department of Education reporting on early childhood education seats. The number of children ages 3-4 is estimated from 2023 DOHMH vital statistics birth data, using two birth cohorts as a proxy for the preschool-age population. Neighborhood race/ethnicity and household income measures come from the 2020-2024 ACS 5-year PUMS, and PUMA boundaries come from NYC Department of City Planning.</p>
+<p>All measures are summarized at the PUMA level. PUMAs are large statistical areas used for Census microdata; in New York City, the 55 PUMAs approximate community districts or combinations of community districts. The analysis does not use individual child records.</p>
+<p>Race and ethnicity are reported as mutually exclusive groups: White NH, Black NH, Hispanic/Latino, AAPI NH, and AIAN/NHPI/Other/2+ NH. AAPI NH is based on residents who identify as non-Hispanic Asian alone in the ACS. AIAN/NHPI/Other/2+ NH combines smaller non-Hispanic race groups for public reporting at this geography.</p>
+<p>Total access is defined as licensed ECE seats divided by the estimated number of children ages 3-4. Occupied access is defined as licensed seats minus vacant seats, divided by the estimated number of children ages 3-4. The adjusted results compare PUMAs with different racial and ethnic composition after accounting for median household income. These models describe neighborhood-level associations; they do not measure whether individual families were offered, accepted, or used a specific seat.</p>
 </section>
 <section id="data-snapshot" class="level2">
 <h2 class="anchored" data-anchor-id="data-snapshot">Data Snapshot</h2>
@@ -407,7 +414,7 @@ In this report
 <td style="text-align: left;">55</td>
 </tr>
 <tr class="even">
-<td style="text-align: left;">Preschool-age children</td>
+<td style="text-align: left;">Children ages 3-4 (2023 DOHMH vital statistics estimate)</td>
 <td style="text-align: left;">173,474</td>
 </tr>
 <tr class="odd">
@@ -434,11 +441,11 @@ In this report
 </table>
 </div>
 </div>
-<p><strong>Data sources:</strong> DOE ECE seat and vacancy data aggregated to PUMA, preschool-age child counts, and 2024 PUMA demographic and income measures in <code>data/lm_model_data.csv</code>; PUMA geography in <code>data/puma_nyc.geojson</code>.</p>
+<p><strong>Public data sources:</strong> <a href="https://infohub.nyced.org/reports/government-reports/student-applications-admissions-and-offers">New York City Public Schools/Department of Education early childhood education seat and enrollment reporting</a>; <a href="https://www.nyc.gov/site/doh/data/data-sets/public-use-birth-datasets.page">NYC DOHMH Public Use Birth Datasets, 2023</a>; <a href="https://www.census.gov/programs-surveys/acs/microdata/documentation/2024.html">U.S. Census Bureau 2020-2024 ACS 5-year PUMS</a>; and <a href="https://data.cityofnewyork.us/City-Government/2020-Public-Use-Microdata-Areas-PUMAs-/pikk-p9nv">NYC Department of City Planning 2020 Public Use Microdata Areas</a>.</p>
 </section>
 <section id="policy-implications" class="level2">
 <h2 class="anchored" data-anchor-id="policy-implications">Policy Implications</h2>
-<p>Policy responses should focus on both <strong>capacity</strong> and <strong>use</strong>. Neighborhoods with low occupied seats per preschool-age child may need additional seats, outreach to families, language access, transportation support, or schedule models that better match caregiver needs. Areas where seats exist but occupancy is lower may require different interventions than areas with low total capacity.</p>
+<p>Policy responses should focus on both <strong>capacity</strong> and <strong>use</strong>. Neighborhoods with low occupied seats per child ages 3-4 may need additional seats, outreach to families, language access, transportation support, or schedule models that better match caregiver needs. Areas where seats exist but occupancy is lower may require different interventions than areas with low total capacity.</p>
 <p>Equity monitoring should track access by geography and racial/ethnic composition together, because citywide averages can obscure neighborhood-level mismatches between child population, available seats, and actual enrollment.</p>
 </section>
 <section id="limitations" class="level2">
