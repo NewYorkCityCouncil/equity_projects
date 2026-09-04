@@ -33,14 +33,14 @@ popup <- sprintf(
   <b>Median household income:</b> %s<br><br>
   <b>Hispanic:</b> %.1f%%<br>
   <b>Black:</b> %.1f%%<br>
-  <b>Asian/API:</b> %.1f%%",
+  <b>Asian:</b> %.1f%%",
   dtb_sf$puma_name,
   dtb_sf$puma,
   dtb_sf$seats_per_child,
   dollar(dtb_sf$median_household_income, accuracy = 1),
   100 * dtb_sf$pct_hispanic,
   100 * dtb_sf$pct_black_nh,
-  100 * dtb_sf$pct_asian_api_nh
+  100 * dtb_sf$pct_asian_nh
 )
 
 
@@ -85,8 +85,8 @@ pal_black <- leaflet::colorBin(
 
 pal_asian <- leaflet::colorBin(
   palette = cool_pal,
-  domain = 100 * dtb_sf$pct_asian_api_nh,
-  bins = pretty(100 * dtb_sf$pct_asian_api_nh, n = 6),
+  domain = 100 * dtb_sf$pct_asian_nh,
+  bins = pretty(100 * dtb_sf$pct_asian_nh, n = 6),
   na.color = "#F5F5F5", 
   reverse = TRUE
 )
@@ -149,17 +149,17 @@ map <- leaflet(dtb_sf) %>%
   ) %>%
   
   addPolygons(
-    fillColor = ~pal_asian(100 * pct_asian_api_nh),
+    fillColor = ~pal_asian(100 * pct_asian_nh),
     fillOpacity = 0.85,
     color = "white",
     weight = 1,
     popup = popup,
     label = ~puma_name,
-    group = "% Asian/API",
+    group = "% Asian",
     highlightOptions = highlightOptions(weight = 3, color = "black", bringToFront = TRUE)
   ) %>%
   
-  hideGroup(c("Median household income", "% Hispanic", "% Black", "% Asian/API")) %>%
+  hideGroup(c("Median household income", "% Hispanic", "% Black", "% Asian")) %>%
   
   addLayersControl(
     baseGroups = c(
@@ -167,7 +167,7 @@ map <- leaflet(dtb_sf) %>%
       "Median household income",
       "% Hispanic",
       "% Black",
-      "% Asian/API"
+      "% Asian"
     ),
     options = layersControlOptions(collapsed = FALSE)
   ) %>%
@@ -205,8 +205,8 @@ map <- leaflet(dtb_sf) %>%
   ) %>%
   addLegend(
     pal = pal_asian,
-    values = ~100 * pct_asian_api_nh,
-    title = "% Asian/API",
+    values = ~100 * pct_asian_nh,
+    title = "% Asian",
     labFormat = labelFormat(suffix = "%"),
     position = "bottomright",
     className = "legend asian-legend"
@@ -220,7 +220,7 @@ map <- leaflet(dtb_sf) %>%
         if (group === 'Median household income') $('.wage-legend').show();
         if (group === '% Hispanic') $('.hisp-legend').show();
         if (group === '% Black') $('.black-legend').show();
-        if (group === '% Asian/API') $('.asian-legend').show();
+        if (group === '% Asian') $('.asian-legend').show();
       }
 
       showLegend('Seats per child');
