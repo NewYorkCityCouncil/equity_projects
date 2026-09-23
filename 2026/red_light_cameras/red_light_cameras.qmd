@@ -24,7 +24,7 @@ Historically, cameras were concentrated at the city's most dangerous intersectio
 
 The Department of Transportation does not publicly release the locations of its red light cameras, as doing so would allow drivers to identify intersections without automated enforcement. However, the DOT does publish the location of all red light violations, including those issued by cameras. Because relatively few red light tickets are issued directly by police officers, it is possible to approximate camera locations by identifying intersections that generate large numbers of red light violations. For this analysis, we identified intersections with more than 25 red light tickets issued between January 1 and June 30, 2026.
 
-Our analysis identified 470 intersections with active red light cameras as of June 30, 2026. This differs from the Department of Transportation's reported total of 531 camera-equipped intersections. The discrepancy is likely the result of differing definitions of an "intersection," as some adjacent intersections may be legally distinct while functioning as a single location in practice. It is also possible that some cameras had been installed but were not yet active during the study period. **Figure 1** shows a density heatmap of identified red light camera locations across New York City:
+Our analysis identified 483 intersections with active red light cameras as of June 30, 2026. This differs from the Department of Transportation's reported total of 531 camera-equipped intersections. The discrepancy is likely the result of differing definitions of an "intersection," as some adjacent intersections may be legally distinct while functioning as a single location in practice. It is also possible that some cameras had been installed but were not yet active during the study period. **Figure 1** shows a density heatmap of identified red light camera locations across New York City:
 
 ## Figure 1: Heatmap of Red Light Cameras
 
@@ -75,3 +75,9 @@ None of these findings should obscure the broader success of red light cameras a
 
 # Sources
 https://www.nyc.gov/html/dot/downloads/pdf/nyc-red-light-camera-program.pdf
+
+
+### NOTES TO ADD (from melissa)
+- Note about 25 ticket threshhold for inclusion being a natural cutoff
+- Change to 0-100 for race variable
+- For the visualizations, if we’re trying to show the mismatch between where cameras are and where we’d expect them based on crashes, maybe a map of the regression residuals would work better. Something like cameras ~ crashes + area, then color the census tracts based on positive vs. negative residuals. Positive = more cameras than predicted and negative = fewer than predicted. Although I’m not sure if that’s already what the current maps are showing.

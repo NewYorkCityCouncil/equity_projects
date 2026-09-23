@@ -190,11 +190,11 @@ cdta_inc <- cross_ct_nta %>%
     pop_oth = sum(pop_oth, na.rm = T)
   ) %>%
   mutate(
-    perc_nhw = pop_nhw / total_pop,
-    perc_nhb = pop_nhb / total_pop,
-    perc_nha = pop_nha / total_pop,
-    perc_his = pop_his / total_pop,
-    perc_oth = pop_oth / total_pop
+    perc_nhw = pop_nhw / total_pop * 100,
+    perc_nhb = pop_nhb / total_pop * 100,
+    perc_nha = pop_nha / total_pop * 100,
+    perc_his = pop_his / total_pop * 100,
+    perc_oth = pop_oth / total_pop * 100
   ) %>%
   rename(cdta2020 = cdtacode)
 
@@ -281,7 +281,8 @@ df_nta <- rl_unique %>%
     vios_count = ifelse(is.na(vios_count), 0, vios_count),
     crash_count = ifelse(is.na(crash_count), 0, crash_count),
     vios_per_crash = vios_count / crash_count,
-    cams_per_crash = num_cams / crash_count
+    cams_per_crash = num_cams / crash_count,
+    cams_per_rel_crash = num_cams / related_crashes
   ) %>%
   st_as_sf() %>%
   left_join(nta_inc, by = c("NTA2020" = "nta2020")) %>%
@@ -325,7 +326,8 @@ df_cdta <- rl_unique %>%
     vios_count = ifelse(is.na(vios_count), 0, vios_count),
     crash_count = ifelse(is.na(crash_count), 0, crash_count),
     vios_per_crash = vios_count / crash_count,
-    cams_per_crash = num_cams / crash_count
+    cams_per_crash = num_cams / crash_count,
+    cams_per_rel_crash = num_cams / related_crashes
   ) %>%
   st_as_sf() %>%
   left_join(cdta_inc, by = c("cdta2020", "cdtaname")) %>%

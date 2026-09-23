@@ -1,0 +1,105 @@
+---
+title: "Red Light Cameras Equity Project for Committee Staff"
+format: html
+
+execute:
+  echo: false
+---
+
+```{r}
+#| include: false
+
+source("code/17_quarto_code.R")
+```
+
+
+### Noah Slosberg
+
+## Background
+Red Light Cameras have existed in NYC since the 90s, but were statutorially limited to only 150 intersections by the state legislature. In 2024, this was expanded to 600 intersections, and it was only with the change in administration at the start of 2026 that the DOT started installing more cameras. According to the DOT, as of July we're at 531 intersections, with plans to hit 600 intersections by the end of the year.
+
+Red light cameras have been proven to work! The DOT found that red light cameras reduced violations by 73% and T-bone crashes by 65%.
+
+## Data Sources
+Red Light Cameras: 
+
+- Red Light Camera locations aren't released to the public, but there is data traffic tickets.
+- Found hotspots for red light tickets (>25) in the past year.
+- As of right now, the data is only released up to late July
+
+Crashes:
+
+- DOT releases data on all crashes occuring in NYC.
+- Filtered for all crashes with "Traffic Control Disregarded" listed as a reason. This also includes crashes caused by ignoring stop signs, turn arrows, etc.
+- Used data from 2025, before the majority of the cameras were activated.
+
+Demographic data:
+
+- From 2020 US Census
+- Aggregated at Neighborhood Tabulation Area level
+
+## Red Light Camera Locations
+
+```{r}
+map_export_camera_locs
+```
+
+#
+
+We're not releasing this map to the public, out of respect for DOT. They keep camera locations private so drivers don't know how to avoid them. \
+This analysis only found 494 intersections with red light cameras, as opposed to the DOT's stated 530. Couple of potential reasons for this difference.\
+Note the gaps in NE Queens, SE and NW Bronx, Midtown Manhattan, Maspeth, etc. \
+Note the high amount of cameras in East Brooklyn, South Jamaica, and the NE Bronx. 
+
+## Installation timeline
+
+```{r}
+install_map
+```
+
+#
+
+The older cameras tend to be at the most dangerous intersections with the highest need for red light cameras. \
+Many cameras were rolled out in Jan/Feb of this year, with installations petering out since then. \
+There's no geographical trend to where the rest were rolled out, and no reason to think that certain neighborhoods just haven't been gotten to.
+
+
+
+## Location of "Traffic Control Disregarded" crashes by Neighborhood
+
+```{r}
+map_export_rel_crashes
+```
+
+
+## Location of Cameras by Neighborhood
+
+```{r}
+map_num_cams_area
+```
+
+
+## Analysis
+
+
+```{r}
+rl_table
+```
+
+#
+As we'd expect, the amount of "traffic control disregarded" crashes, the number of traffic lights, and the size of a NTA all have an effect on the amount of red light cameras in a neighborhood. \
+When running a regression on race variables, we need to omit one racial category to use as our base case. Intiutively, we can imagine that no neighborhood could be 0 in all racial categories or 1 in all racial categories. The "% White" variable was removed, and the rest of the racial categories can be interpreted as "in relation" to the base case.\
+The "% Black" variable is also significant. This means that when controlling for area, the number of traffic lights, and the number of related crashes, an equivalent neighborhood that is a higher % Black has more cameras than a White neighborhood.\
+The results of a Negative Binomial Regression are exponents, so to understand the difference between neighborhoods, we need to exponent our variables using the formula e^(Change * Estimate).
+
+```{r}
+perc_black_table
+```
+
+## Policy Implications
+
+- As the Department of Transportation completes the expansion of the red light camera program to 600 intersections, the City has an opportunity to correct the imbalance identified in this report by prioritizing the remaining installations in neighborhoods of Manhattan, the Bronx, and Queens that currently have limited coverage. 
+- Because red light cameras have demonstrated substantial safety benefits, any Council oversight of future placement should aim to preserve, and ideally extend, those safety gains to underserved high-crash areas rather than reducing coverage in currently served neighborhoods. 
+- The Department of Transportation could publish regular reporting on camera placement relative to crash data by neighborhood as the program continues to expand. 
+- The Department of Transportation could make transparent their methodology surrounding the selection of sites for red light camera placement to ensure the cameras are placed in an unbiased fashion. 
+- Agencies could engage with communities that already have high camera concentrations to ensure enforcement is paired with broader traffic-safety investment, not solely automated ticketing. 
