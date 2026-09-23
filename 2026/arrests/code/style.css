@@ -1,0 +1,17 @@
+/* Float narrow tables so text wraps around them */
+.float-right {
+  float: right;
+  margin-left: 1.5em;
+  margin-bottom: 1em;
+}
+
+.float-left {
+  float: left;
+  margin-right: 1.5em;
+  margin-bottom: 1em;
+}
+
+/* Clear floats after the wrapping paragraph */
+.clear-floats {
+  clear: both;
+}

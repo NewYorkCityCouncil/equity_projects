@@ -8,6 +8,11 @@
 
 source("00_load_dependencies.R")
 
+census_key <- Sys.getenv("CENSUS_API_KEY")
+if (nzchar(census_key)) {
+  census_api_key(census_key, install = FALSE, overwrite = TRUE)
+}
+
 # download race/ethn/HH income
 pums <- get_pums(
   variables = c(
@@ -90,11 +95,13 @@ pums[
 pums[
   ,
   race_ethnicity := fcase(
-    hispanic_origin > 1, "Hispanic/Latino",
-    race == 1, "White, non-Hispanic",
-    race == 2, "Black, non-Hispanic",
-    race %in% c(6, 7), "Asian/API, non-Hispanic",
-    rep(TRUE, .N), "Other/multiracial, non-Hispanic"
+    hispanic_origin > 1, "Hispanic",
+    race == 1, "White",
+    race == 2, "Black",
+    race == 6, "Asian",
+    race %in% c(3, 4, 5, 7), "AIAN_NHPI",
+    race %in% c(8, 9), "Other_2plus",
+    default = NA_character_
   )
 ]
 
@@ -103,11 +110,12 @@ puma_race <- pums[
   .(
     population = sum(person_weight, na.rm = TRUE),
     
-    white_nh = sum(person_weight * (race_ethnicity == "White, non-Hispanic"), na.rm = TRUE),
-    black_nh = sum(person_weight * (race_ethnicity == "Black, non-Hispanic"), na.rm = TRUE),
-    hispanic = sum(person_weight * (race_ethnicity == "Hispanic/Latino"), na.rm = TRUE),
-    asian_api_nh = sum(person_weight * (race_ethnicity == "Asian/API, non-Hispanic"), na.rm = TRUE),
-    other_multiracial_nh = sum(person_weight * (race_ethnicity == "Other/multiracial, non-Hispanic"), na.rm = TRUE)
+    white_nh = sum(person_weight * (race_ethnicity == "White"), na.rm = TRUE),
+    black_nh = sum(person_weight * (race_ethnicity == "Black"), na.rm = TRUE),
+    hispanic = sum(person_weight * (race_ethnicity == "Hispanic"), na.rm = TRUE),
+    asian_nh = sum(person_weight * (race_ethnicity == "Asian"), na.rm = TRUE),
+    aian_nhpi = sum(person_weight * (race_ethnicity == "AIAN_NHPI"), na.rm = TRUE),
+    other_2plus = sum(person_weight * (race_ethnicity == "Other_2plus"), na.rm = TRUE)
   ),
   by = puma
 ]
@@ -118,8 +126,10 @@ puma_race[
     pct_white_nh = white_nh / population,
     pct_black_nh = black_nh / population,
     pct_hispanic = hispanic / population,
-    pct_asian_api_nh = asian_api_nh / population,
-    pct_other_multiracial_nh = other_multiracial_nh / population
+    pct_asian_nh = asian_nh / population,
+    pct_aian_nhpi = aian_nhpi / population,
+    pct_other_2plus = other_2plus / population,
+    pct_other_2plus_combined = (aian_nhpi + other_2plus) / population
   )
 ]
 
@@ -202,7 +212,16 @@ dtb[
       pct_black_nh * 10,
     
     pct_asian10 =
-      pct_asian_api_nh * 10
+      pct_asian_nh * 10,
+    
+    pct_aian_nhpi10 =
+      pct_aian_nhpi * 10,
+    
+    pct_other_2plus10 =
+      pct_other_2plus * 10,
+    
+    pct_other_2plus_combined10 =
+      pct_other_2plus_combined * 10
   )
 ]
 fwrite(dtb, "data/lm_model_data.csv")

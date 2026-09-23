@@ -59,6 +59,8 @@ format:
     toc-title: "In this report"
     smooth-scroll: true
     anchor-sections: true
+    include-in-header:
+      - progress.html
 
 editor: visual
 

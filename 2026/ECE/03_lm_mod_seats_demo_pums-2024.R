@@ -46,13 +46,13 @@ results[
     "Intercept",
     
     term == "pct_hispanic10",
-    "10 percentage-point inc Hispanic/Latino",
+    "10 percentage-point inc Hispanic",
     
     term == "pct_black10",
-    "10 percentage-point inc Black NH",
+    "10 percentage-point inc Black",
     
     term == "pct_asian10",
-    "10 percentage-point inc Asian/API NH",
+    "10 percentage-point inc Asian",
     
     term == "median_inc_10k",
     "$10,000 inc Median hh income",
@@ -99,7 +99,7 @@ coef_p <- ggplot(
   geom_point(size = 3) +
   labs(
     title = "Race/Ethnicity and Median HH Income vs Number of Seats/3-4 year olds",
-    subtitle = "Reference: White/NH",
+    subtitle = "Reference: White",
     x = "Percent change in seats per preschool-age child",
     y = NULL
   ) +
@@ -245,9 +245,9 @@ race_only <- copy(resultsre)
 race_only[
   ,
   predictor := fcase(
-    term == "pct_hispanic10", "Hispanic/Latino",
-    term == "pct_black10", "Black NH",
-    term == "pct_asian10", "Asian/API NH",
+    term == "pct_hispanic10", "Hispanic",
+    term == "pct_black10", "Black",
+    term == "pct_asian10", "Asian",
     default = NA_character_
   )
 ]
@@ -274,9 +274,9 @@ with_income <- copy(results)
 with_income[
   ,
   predictor := fcase(
-    term == "pct_hispanic10", "Hispanic/Latino",
-    term == "pct_black10", "Black NH",
-    term == "pct_asian10", "Asian/API NH",
+    term == "pct_hispanic10", "Hispanic",
+    term == "pct_black10", "Black",
+    term == "pct_asian10", "Asian",
     term == "median_inc_10k", "Median household income",
     default = NA_character_
   )
@@ -312,9 +312,9 @@ compare_table[
   predictor := factor(
     predictor,
     levels = c(
-      "Hispanic/Latino",
-      "Black NH",
-      "Asian/API NH",
+      "Hispanic",
+      "Black",
+      "Asian",
       "Median household income"
     )
   )

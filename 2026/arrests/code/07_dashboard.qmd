@@ -1,0 +1,729 @@
+---
+title: "Equity in Arrests and Summonses in New York City"
+author: "New York City Council Data Team"
+format: 
+  dashboard: 
+    logo: ../assets/council-logo.png
+    scrolling: true
+    self-contained: true
+editor: visual
+---
+
+```{r, echo=FALSE, results=FALSE}
+library(dplyr)
+library(tidyverse)
+library(leaflet)
+library(modelsummary)
+library(kableExtra)
+library(knitr)
+library(sf)
+library(stringr)
+library(arrow)
+library(fixest)
+library(modelsummary)
+
+# council packages
+library(councilcount)
+library(councildown)
+```
+
+```{r}
+# loadig in data
+arrests_ct_merged <- read_parquet('../data/output/arrests_ct_merged_6_30_26.parquet')
+arrests_geo <- readRDS('../data/output/arrests_geo.RDS')
+```
+
+```{r}
+# need to create new variable that shows the extent of overrepresentation in arrests
+
+arrests_geo <- arrests_geo |> 
+  mutate(
+    over_diff_black = arrests_black_prop - black_nh_prop,
+    over_diff_white = arrests_white_prop - white_nh_prop,
+    over_diff_asian = arrests_asian_prop - asian_nh_prop,
+    over_diff_hispanic = arrests_hispanic_prop - hispanic_prop,
+  ) |> 
+      mutate(
+    over_diff_black = ifelse(pop < 1000, NA, over_diff_black),
+    over_diff_white = ifelse(pop < 1000, NA, over_diff_white),
+    over_diff_asian = ifelse(pop < 1000, NA, over_diff_asian),
+    over_diff_hispanic = ifelse(pop < 1000, NA, over_diff_hispanic)
+  )
+```
+
+# Descriptive Statistics and Overview
+
+::::::: {.card fill="false"}
+::: card-header
+Arrests made by the NYPD in 2024
+:::
+
+::::: grid
+::: g-col-12
+In 2024, the NYPD made `r format(sum(arrests_ct_merged[arrests_ct_merged$yr == 2024,]$total_arrests, na.rm = TRUE), big.mark = ',', scientific = FALSE)` arrests throughout the five boroughs. Among these arrests, there is a well-documented racial disparity, in which Black New Yorkers make up only 22% of the city's residents, but account for 47% of all arrests. Similarly, New Yorkers of Hispanic/ Latino origin represented 36% of all arrests, but only comprise 27% of the city's population. White New Yorkers, who account for 34% of the population, were only represented in 10% of arrests.
+
+Such disparities exist not only at the city level, but at the neighborhood level as well. Table 1 displays the proportion of census tracts within New York City in which the proportion of individuals arrested from a given ethnicity is greater than the share of the population that group makes up in the census tract's population. In nearly every census tract, Black New Yorkers make up a larger share of arrestees than they do residents. In Census Tract 167, an area near Prospect Park, for example, Black residents comprise only 1.3% of the population, but accounted for 33 of the 42 arrests that occurred in that CT in 2024.
+:::
+
+::: g-col-12
+```{r}
+arrests_ct_merged |> 
+    mutate(
+        black_overrep = ifelse(arrests_black_prop > black_nh_prop, 1, 0),
+        white_overrep = ifelse(arrests_white_prop > white_nh_prop, 1, 0),
+        hispanic_overrep = ifelse(arrests_hispanic_prop > hispanic_prop, 1, 0),
+        asian_overrep = ifelse(arrests_asian_prop > asian_nh_prop, 1, 0)
+    ) |> 
+    filter(
+        yr == 2024 & pop >= 1000 & B19013_001E > 0
+    ) |> 
+    summarise(
+        black_overrep_prop = mean(black_overrep, na.rm = TRUE),
+        white_overrep_prop = mean(white_overrep, na.rm = TRUE),
+        asian_overrep_prop = mean(asian_overrep, na.rm = TRUE),
+        hispanic_overrep_prop = mean(hispanic_overrep, na.rm = TRUE)
+    ) |> 
+        pivot_longer(
+            cols = ends_with('_prop'),
+            names_to = 'Race/ Ethnicity',
+            values_to = 'Prop. of CTs Overrepresented in Arrests'
+        ) |> 
+            mutate(
+                `Race/ Ethnicity` = str_to_sentence(sub('_.*', '', `Race/ Ethnicity`)),
+                `Prop. of CTs Overrepresented in Arrests` = paste0(round(`Prop. of CTs Overrepresented in Arrests`*100), '%')
+            ) |> 
+            kable(
+                align = 'c'
+            )
+```
+
+```{r, results=FALSE}
+arrests_ct_merged |> 
+    filter(
+        yr == 2024 & pop >= 1000 & B19013_001E > 0 & black_nh_prop > 0 & total_arrests >= 30
+    ) |> 
+    mutate(black_arrest_pop_diff = arrests_black_prop - black_nh_prop) |> 
+    slice_max(order_by = black_arrest_pop_diff, n = 1) |> 
+    select(NAME, black_nh_prop, black_arrest_pop_diff, black_nh_prop, arrests_black_prop, total_arrests, BLACK)
+```
+:::
+:::::
+:::::::
+
+::::::: {.card fill="false"}
+::: card-header
+Arrests and Demographic Distributions
+:::
+
+::::: grid
+::: g-col-6
+```{r}
+map_vars <- c('over_diff_black', 'over_diff_white', 'over_diff_asian', 'over_diff_hispanic')
+
+prop_vars <- c('arrests_black_prop', 'arrests_white_prop', 'arrests_asian_prop', 'arrests_hispanic_prop')
+
+prop_pop_vars <- c('black_nh_prop', 'white_nh_prop', 'asian_nh_prop', 'hispanic_prop')
+
+over_diff_labels <- c('Overrep Black', 'Overrep White', 'Overrep Asian', 'Overrep Hispanic')
+
+prop_labels <- c('Prop. Arrests Black', 'Prop. Arrests White', 'Prop. Arrests Asian', 'Prop. Arrests Hispanic')
+
+prop_pop_labels <- c('Prop. CT Pop. Black', 'Prop. CT Pop. White', 'Prop. CT Pop. Asian', 'Prop. CT Pop. Hispanic')
+
+overrep_pal <- colorNumeric(
+  palette = 'RdBu',
+  domain = c(-1, 1),
+  reverse = TRUE
+)
+
+m_overrep <- arrests_geo |> 
+  filter(yr == 2024) |> 
+  mutate(
+    plurality_ethnicity = as.character(plurality_ethnicity),
+    plurality_ethnicity = str_to_sentence(str_extract(plurality_ethnicity, '^[^_]+'))
+  ) |> 
+  leaflet() |> 
+  addCouncilStyle() |> 
+  add_council_basemaps(
+  selection = c(1, 5),
+  custom_names = c("Default View", "Satellite View"),
+  control_position = "topright",
+  control_collapsed = FALSE
+  ) |>
+  addTiles()
+
+for(i in seq_along(map_vars)){
+  v <- map_vars[i]
+  v2 <- prop_vars[i]
+  pop_var <- prop_pop_vars[i]
+  m_overrep <- m_overrep |> 
+    addPolygons(
+      fillColor = ~overrep_pal(arrests_geo[arrests_geo$yr == 2024,][[v]]),
+      fillOpacity = 0.7,
+      color = '#444444',
+      weight = 1,
+      opacity = 1,
+      label = ~lapply(
+        paste0('<b>Census Tract: </b>', NAME, '<br>', '<b>', prop_labels[i], ': </b>', round(arrests_geo[arrests_geo$yr == 2024,][[v2]], 2), '<br><b>', prop_pop_labels[i], ': </b>', round(arrests_geo[arrests_geo$yr == 2024,][[pop_var]], 2), '<br><b>No. Arrests: </b>', format(total_arrests, big.mark = ','), '<br><b>Predominant Ethnicity: </b><br>', plurality_ethnicity, '<br><b>Population: </b>', format(pop, big.mark = ',')),
+        htmltools::HTML
+      ),
+      group = over_diff_labels[i]
+    )
+}
+
+m_overrep <- m_overrep |> 
+  addLayersControl(
+    baseGroups = over_diff_labels,
+    options = layersControlOptions(collapsed = FALSE)
+  ) |> 
+    addLegend(
+      position = 'bottomright',
+      pal = overrep_pal,
+      values = c(-1, 1),
+      title = '<div style="text-align:center"Extent of <br>Overrepresentation</div>',
+      opacity = 0.7
+    )
+
+m_overrep
+```
+:::
+
+::: g-col-6
+```{r}
+arrests_pal <- colorQuantile(
+  palette = 'YlOrRd',
+  domain = arrests_geo[arrests_geo$pop > 1000, ]$total_arrests,
+  n = 5
+)
+
+arrests_breaks <- quantile(arrests_geo$total_arrests, probs = seq(0, 1, 0.2), na.rm = TRUE)
+
+pal_labels <- c(
+  paste0("0–20th (", arrests_breaks[1], "–", arrests_breaks[2], ")"),
+  paste0("20–40th (", arrests_breaks[2], "–", arrests_breaks[3], ")"),
+  paste0("40–60th (", arrests_breaks[3], "–", arrests_breaks[4], ")"),
+  paste0("60–80th (", arrests_breaks[4], "–", arrests_breaks[5], ")"),
+  paste0("80–100th (", arrests_breaks[5], "–", arrests_breaks[6], ")")
+)
+
+arrests_geo |> 
+  filter(yr == 2024) |> 
+  mutate(total_arrests = ifelse(pop < 1000, NA, total_arrests)) |> 
+  leaflet() |> 
+  addCouncilStyle() |> 
+  add_council_basemaps(
+  selection = c(1, 5),
+  custom_names = c("Default View", "Satellite View"),
+  control_position = "topright",
+  control_collapsed = FALSE
+  ) |>
+  addTiles() |> 
+  addPolygons(
+    color = '#444444',
+    fillColor = ~arrests_pal(total_arrests),
+    weight = 1,
+    opacity = 1,
+    fillOpacity = 0.7,
+    popup = ~paste0('<b>Census Tract:</b> ', NAME, '<br><b>Total Arrests: </b>', total_arrests)
+  ) |> 
+  addLegend(
+    colors   = RColorBrewer::brewer.pal(5, "YlOrRd"),
+    values = ~total_arrests,
+    labels = pal_labels,
+    title = '<div style="text-align:center"Total Arrests</div>',
+    position = 'bottomright'
+  )
+```
+:::
+:::::
+
+```{r}
+ethn_pal <- colorFactor(
+    palette = c('#2F56A6', '#800000', '#007534', '#dc6d4f','#666666'),
+    levels = c('White', 'Asian', 'Black', 'Hispanic', 'None/ Few Residents'),
+    domain = filter(arrests_geo, yr == 2024) |> mutate(
+        plurality_ethnicity = as.character(plurality_ethnicity),
+        plurality_ethnicity = str_to_sentence(str_extract(plurality_ethnicity, '^[^_]+')),
+        plurality_ethnicity = ifelse(pop < 1000, 'None/ Few Residents', plurality_ethnicity)
+    ) |> pull(plurality_ethnicity)
+)
+
+arrests_geo |> 
+    filter(yr == 2024) |> 
+    mutate(
+        plurality_ethnicity = as.character(plurality_ethnicity),
+        plurality_ethnicity = str_to_sentence(str_extract(plurality_ethnicity, '^[^_]+')),
+        plurality_ethnicity = ifelse(pop < 1000, 'Few Residents', plurality_ethnicity)
+    ) |> 
+    leaflet() |> 
+    addCouncilStyle() |> 
+    add_council_basemaps(
+        selection = c(1, 5),
+        custom_names = c("Default View", "Satellite View"),
+        control_position = "topright",
+        control_collapsed = FALSE
+    ) |>
+    addPolygons(
+        fillColor = ~ethn_pal(plurality_ethnicity),
+        color = '#444444',
+        weight = 1,
+        opacity = 1,
+        fillOpacity = ~ct_hhi,
+        popup = ~paste0('<b>Census Tract:</b> ', NAME, '<br><b>Predominant Race/ Ethnicity: </b>', plurality_ethnicity, '<br><b>Population: </b>', format(pop, big.mark = ','), '<br><b>Race/Ethnicity Predominance (HHI): </b>', paste0(round(ct_hhi*100), '%'))
+    ) |> 
+    addLegend(
+        position = 'bottomright',
+        # pal = ethn_pal,
+        # values = filter(arrests_geo, yr == 2024) |> mutate(
+        # plurality_ethnicity = as.character(plurality_ethnicity),
+        # plurality_ethnicity = str_to_sentence(str_extract(plurality_ethnicity, '^[^_]+')),
+        # plurality_ethnicity = ifelse(pop < 1000, 'None/ Few Residents', plurality_ethnicity)
+        # ) |> pull(plurality_ethnicity),
+        title = '<div style="text-align:center"Predominant Race/ Ethnicity in CT</div>',
+        opacity = 0.7,
+        colors = c('#2F56A6', '#800000', '#007534', '#dc6d4f','#666666'),
+        labels = c('White', 'Asian', 'Black', 'Hispanic', 'None/ Few Residents')
+        )
+#
+
+```
+:::::::
+
+# Arrest Rates and Census Tract Demographics
+
+::::::: card
+::: card-header
+Demographic Share and Arrest Rates
+:::
+
+::::: grid
+::: g-col-6
+The extent to which racial/ ethnic composition and arrest rates is complex. Communities that are predominantly Black or Hispanic/ Latino tend to see more arrests compared to communities that are predominantly White. Similarly, an increase in the share of a census tract's population that is Black or Hispanic is associated with a large increase in arrest rates. When we bifurcate this analysis to examine how racial/ ethnic composition affects arrests in predominantly White census tracts as opposed to predominantly Black census tracts, we observe highly divergent outcomes. In predominantly White census tracts, arrests rates increase with the proportion of the population comprised of Black individuals. This is in contrast to predominantly Black census tracts, where we observe is a negative association between these two variables. However, this differential effect does not appear in predominantly Hispanic census tracts. Instead, we find that in both predominantly White and predominantly Hispanic census tracts, there is a positive association between the Hispanic/ Latino share of the population and arrest rates. Finally, in predominantly the overall association between the White share of the population and arrest rates are negative. When we once again break this down by the predominantly race/ ethnicity in a census tract, we observe a weak by positive association between the White share of the population and arrest rates in predominantly Black communities, but a strong negative association between the two indicators in predominantly White communities.
+:::
+
+::: g-col-6
+```{r}
+arrests_ct_merged |> 
+  filter(yr == 2024 & pop >= 1000) |> 
+  ggplot(aes(
+    x = plurality_ethnicity,
+    y = log(total_arrests),
+    color = plurality_ethnicity
+  )) + 
+  geom_boxplot() + 
+  labs(
+    title = 'Distribution of Arrest Rates \nby Plurality Ethnicity',
+    x = 'Predominant Race/ Ethnicity',
+    y = 'Arrest Rates (logged)',
+    color = 'Plurality Ethnicity'
+  ) + 
+  theme_nycc() + 
+  theme(
+    plot.title = element_text(hjust = 0.5),
+    legend.position = 'none'
+  ) +
+  scale_color_nycc() + 
+  scale_x_discrete(
+    labels = c(
+      'White', 'Asian', 'Black', 'Hispanic'
+    )
+  )
+```
+:::
+:::::
+:::::::
+
+:::::: card
+::: card-header
+Demographic Share and Arrest Rates
+:::
+
+:::: grid
+::: g-col-12
+```{r}
+arrests_ct_merged |> 
+  filter(yr == 2024 & pop >= 1000 & plurality_ethnicity %in% c('white_nh', 'black_nh')) |> 
+  ggplot(aes(
+    x = black_nh_prop,
+    y = log(total_arrests),
+    color = plurality_ethnicity
+  )) + 
+  geom_point() + 
+  geom_smooth(method = 'lm') + 
+  labs(
+    title = 'Black Share of the Population and Arrest Rates',
+    x = 'Black Share of CT Population',
+    y = 'Total Arrests (logged)',
+    color = 'Plurality Ethnicity'
+  ) + 
+  theme_nycc() + 
+  theme(
+    plot.title = element_text(hjust = 0.5)
+  ) + 
+  scale_color_nycc(
+    labels = c('white_nh' = 'White', 'black_nh' = 'Black')
+  )
+```
+:::
+::::
+
+```{r}
+arrests_ct_merged |> 
+  filter(yr == 2024 & pop >= 1000 & plurality_ethnicity %in% c('white_nh', 'hispanic')) |> 
+  ggplot(aes(
+    x = hispanic_prop,
+    y = log(total_arrests),
+    color = plurality_ethnicity
+  )) + 
+  geom_point() + 
+  geom_smooth(method = 'lm') + 
+  labs(
+    title = 'Hispanic/ Latino Share \nof the Population and Arrest Rates',
+    x = 'Hispanic/ Latino Share of CT Population',
+    y = 'Total Arrests (logged)',
+    color = 'Plurality Ethnicity'
+  ) + 
+  theme_nycc() + 
+  theme(
+    plot.title = element_text(hjust = 0.5)
+  ) + 
+  scale_color_nycc(
+    labels = c('white_nh' = 'White', 'hispanic' = 'Hispanic/ Latino')
+  )
+```
+::::::
+
+::::::: card
+::: card-header
+Diversity and Arrest Rates
+:::
+
+::::: grid
+::: g-col-12
+The results from the above analysis indicate that in many of New York's census tracts, in increase in the proportion of the population from an racial/ ethnic background other than the tract's predominant one is associated with a rise in arrest rates. Below, we test the hypothesis that more diverse communities tend to see greater rates of arrests. To do so, we measure diversity by using an index for fractionalization calculated by taking the squared sums of each ethnicity's share of the census tract's population. This initial value represents the probability that two residents of the census tract chosen at random are from the same racial/ ethnic background. We then subtract this value from one to represent the opposite of this - or the probability that these two randomly chosen individuals would be from different backgrounds.
+
+The plot below indicates that overall, we observe a positive relationship between diversity and arrest rates, meaning that more diverse communities tend to experience greater rates of arrest. When we break these results down by each census tract's predominant racial or ethnic group, we find that this general trend persists for both predominantly White and predominantly Black census tracts (and, to some extent, predominantly Asian census tracts) but is reversed for predominantly Latino tracts. There, greater levels of diversity tend to be associated with lower rates of arrest.
+:::
+
+::: g-col-12
+```{r}
+arrests_ct_merged |> 
+  filter(pop > 1000 & B19013_001E > 0 & yr == 2024) |> 
+  ggplot(aes(
+    x = diversity,
+    y = log(total_arrests),
+    color = plurality_ethnicity
+  )) + 
+  geom_point(aes(alpha = non_white_prop)) + 
+  geom_smooth(method = 'lm') + 
+  labs(
+    title = 'Diversity Levels and Arrests, 2024',
+    x = '1 - HHI',
+    y = 'Total Arrests \n (Logged)',
+    color = 'Plurality Ethnicity',
+    alpha = 'Prop. \n Non-White'
+  ) + 
+  theme_nycc() + 
+  theme(
+    plot.title = element_text(hjust = 0.5)
+  ) + 
+  scale_color_nycc(
+    labels = c('White', 'Asian', 'Black', 'Hispanic/\nLatino')
+  )
+```
+:::
+:::::
+:::::::
+
+# Regression and Modelling
+
+```{r}
+nb_mods <- readRDS('../data/nb_models.RDS')
+```
+
+```{r}
+modelsummary(
+  nb_mods,
+  coef_rename = c(
+    'plurality_ethnicityasian_nh' = 'Predominantly Asian',
+    'plurality_ethnicityblack_nh' = 'Predominantly Black',
+    'plurality_ethnicityhispanic' = 'Predominantly Hispanic',
+    'log(pop)' = 'Population (logged)',
+    'log(B19013_001E)' = 'Median Income (logged)',
+    'gini' = 'Inequality (Gini Index)',
+    'black_nh_prop' = 'Prop. Black',
+    'asian_nh_prop' = 'Prop Asian',
+    'hispanic_prop' = 'Prop. Hispanic',
+    'plurality_white' = 'Predominantly White (binary)',
+    'black_nh_prop:plurality_white' = 'Predominantly White x Prop. Black',
+    'plurality_black' = 'Predominantly Black (binary)'
+  ),
+  output = 'gt',
+  stars = FALSE,
+  estimate = "{ifelse(p.value < 0.05, paste0('<strong>', sprintf('%.3f', as.numeric(estimate)), '</strong>'), sprintf('%.3f', as.numeric(estimate)))}",
+  escape = FALSE
+) |> 
+  gt::fmt_markdown(columns = -1) 
+```
+
+# Index Crimes
+
+```{r}
+violent_geo <- readRDS('../data/output/violent_geo.RDS')
+```
+
+:::::::: card
+::: card-header
+Demographics and Index Crimes
+:::
+
+:::::: grid
+::: g-col-12
+In the present analysis, we identify the impacts that demographic factors have on index crimes - those involving serious offenses such as murder, robbery, or rape - using two methods. First, we devise a set of models similar to the ones in the previous analysis, taking the number of index crimes in a census tract as our outcome of interest. We subsequently estimate a similar set of models that takes as its outcome the proportion of all arrests within that census tract that were for index crimes. The results reveal that the distribution of arrests for index crimes overall is similar to that of arrests for general crimes. When we estimate the same models for index crime arrests as a proportion of all arrests, the results tell a different story.
+
+Though predominantly Black neighborhoods generally see higher rates of arrest throughout the city, the proportion of those arrests that are for index crimes - those involving serious crimes such as murder, robbery, or rape - are lower compared to that of predominantly White census tracts. When considering the relationship between demographics and violent arrest rates among Hispanic and Asian communities becomes more complicated. Predominantly Hispanic census tracts do not appear to experience significantly higher rates of violent crimes when compared to predominantly White communities. However, an increase in the proportion of CT residents of Hispanic/ Latino origin is associated with a statistically significant increase in the proportion of crimes identified as index crimes. Among predominantly Asian communities, there is a statistically meaningful but substantively small (near zero) positive difference in violent arrest rates compared to predominantly White CTs. An increase in the proportion of residents identifying as Asian also seems to be associated with an increase in the proportion of index crimes in that census tract.
+:::
+
+::: g-col-12
+```{r}
+violent_pal <- colorBin(
+  palette = 'YlOrRd',
+  domain = violent_geo[violent_geo$yr == 2024 & violent_geo$pop >= 1000, ]$index_crimes_prop 
+)
+  
+violent_geo |> 
+  filter(yr == 2024 & pop >= 1000) |> 
+  mutate(
+    plurality_ethnicity = as.character(plurality_ethnicity),
+    plurality_ethnicity = str_to_sentence(str_extract(plurality_ethnicity, '^[^_]+'))
+  ) |> 
+  leaflet() |> 
+  addCouncilStyle() |> 
+  add_council_basemaps(
+  selection = c(1, 5),
+  custom_names = c("Default View", "Satellite View"),
+  control_position = "topright",
+  control_collapsed = FALSE
+  ) |>
+  addTiles() |> 
+  addPolygons(
+    color = '#444444',
+    fillColor = ~violent_pal(index_crimes_prop),
+    weight = 1,
+    opacity = 1,
+    fillOpacity = 0.7,
+    popup = ~paste0('<b>Census Tract:</b> ', NAME, '<br><b>Pct. Index Crimes: </b>', paste0(round(index_crimes_prop, 3)*100, '%'), '<br><b>Total Arrests: </b>', format(total_arrests, big.mark = '.'), '<br><b>Predominant Ethnicity: </b>', plurality_ethnicity)
+  )
+```
+:::
+
+::: g-col-12
+Part of this discrepancy may be explained by policing patterns. The extent to which Black communities are over-policed and to which officers engage in broken-window policing is well-documented. While arrests in predominantly White areas occur for serious offenses, arrests in predominantly Black areas tend to occur for inocuous violations of the law. It is worth noting that the data at hand presents us with information on *arrests* rather than *crime*, with the former potentially representing a subset of the latter. In communities that are over-policed, we can expect to observe greater incidence of arrests compared to under-policed or adequately-policed communities, where the gap between rates of crime and those of arrests may be larger. Though this is a plausible explanation for the gaps observed in this analysis, it is difficult to provide evidence for this using currently available data, as crimes that do not result in arrests remain unobserved.
+:::
+::::::
+::::::::
+
+:::::::: card
+::: card-header
+Comparing Arrests to Complaints
+:::
+
+:::::: grid
+::: g-col-12
+```{r}
+arrests_complaints_geo <- readRDS('../data/output/arrests_complaints_geo_7_21.RDS')
+```
+
+```{r}
+ratio_pal <- colorQuantile(
+  palette = 'YlOrRd',
+  domain = arrests_complaints_geo[arrests_complaints_geo$pop >= 1000, ]$arrest_complaint_ratio,
+  n = 5
+)
+
+ratio_breaks <- quantile(
+  round(arrests_complaints_geo[arrests_complaints_geo$pop >= 1000, ]$arrest_complaint_ratio, 3), probs = seq(0, 1, 0.2), na.rm = TRUE
+)
+
+ratio_labels <- c(
+  paste0("0–20th (", ratio_breaks[1], "–", ratio_breaks[2], ")"),
+  paste0("20–40th (", ratio_breaks[2], "–", ratio_breaks[3], ")"),
+  paste0("40–60th (", ratio_breaks[3], "–", ratio_breaks[4], ")"),
+  paste0("60–80th (", ratio_breaks[4], "–", ratio_breaks[5], ")"),
+  paste0("80–100th (", ratio_breaks[5], "–", ratio_breaks[6], ")")
+)
+
+arrests_complaints_geo |> 
+  filter(yr == 2024 & pop >= 1000) |> 
+  leaflet() |> 
+  addCouncilStyle() |> 
+  add_council_basemaps(
+    selection = c(1, 5),
+    custom_names = c('Default View', 'Satellite View'),
+    control_position = 'topright',
+    control_collapsed = FALSE
+  ) |> 
+  addTiles() |> 
+  addPolygons(
+    color = '#444444',
+    fillColor = ~ratio_pal(arrest_complaint_ratio),
+    weight = 1,
+    opacity = 1,
+    fillOpacity = 0.7,
+    popup = ~paste0('<b>Census Tract: </b>', NAME, '<br><b>Arrest-Complaint Ratio: </b>', round(arrest_complaint_ratio, 3))
+  ) |> 
+  addLegend(
+    colors = RColorBrewer::brewer.pal(5, 'YlOrRd'),
+    values = ~arrest_complaint_ratio,
+    labels = ratio_labels,
+    title = '<div style="text-align:center"Ratio of <br> Arrests to Complaints</div>',
+    position = 'bottomright'
+  )
+```
+
+```{r}
+# violent ratios 
+
+v_ratio_pal <- colorQuantile(
+  palette = 'YlOrRd',
+  domain = arrests_complaints_geo[arrests_complaints_geo$yr == 2024 & arrests_complaints_geo$pop >= 1000 & !is.infinite(arrests_complaints_geo$violent_arrests_complaints_ratio), ]$violent_arrests_complaints_ratio,
+  n = 5
+)
+
+v_ratio_breaks <- quantile(
+  round(arrests_complaints_geo[arrests_complaints_geo$yr == 2024 & arrests_complaints_geo$pop >= 1000 & !is.infinite(arrests_complaints_geo$violent_arrests_complaints_ratio), ]$violent_arrests_complaints_ratio, 3), probs = seq(0, 1, 0.2), na.rm = TRUE
+)
+
+v_ratio_labels <- c(
+  paste0("0–20th (", v_ratio_breaks[1], "–", v_ratio_breaks[2], ")"),
+  paste0("20–40th (", v_ratio_breaks[2], "–", v_ratio_breaks[3], ")"),
+  paste0("40–60th (", v_ratio_breaks[3], "–", v_ratio_breaks[4], ")"),
+  paste0("60–80th (", v_ratio_breaks[4], "–", v_ratio_breaks[5], ")"),
+  paste0("80–100th (", v_ratio_breaks[5], "–", v_ratio_breaks[6], ")")
+)
+
+arrests_complaints_geo |> 
+  filter(yr == 2024 & pop >= 1000 & !is.infinite(violent_arrests_complaints_ratio)) |> 
+  leaflet() |> 
+  addCouncilStyle() |> 
+  add_council_basemaps(
+    selection = c(1, 5),
+    custom_names = c('Default View', 'Satellite View'),
+    control_position = 'topright',
+    control_collapsed = FALSE
+  ) |> 
+  addTiles() |> 
+  addPolygons(
+    color = '#444444',
+    fillColor = ~ratio_pal(violent_arrests_complaints_ratio),
+    weight = 1,
+    opacity = 1,
+    fillOpacity = 0.7,
+    popup = ~paste0('<b>Census Tract: </b>', NAME, '<br><b>Arrest-Complaint Ratio: </b>', round(violent_arrests_complaints_ratio, 3))
+  ) |> 
+  addLegend(
+    colors = RColorBrewer::brewer.pal(5, 'YlOrRd'),
+    values = ~violent_arrests_complaints_ratio,
+    labels = v_ratio_labels,
+    title = '<div style="text-align:center"Ratio of <br> Arrests to Complaints <br> (Index Only)</div>',
+    position = 'bottomright'
+  )
+```
+:::
+
+::: g-col-12
+Below, we examine the extent to which arrests for index crimes match complaints about index crimes occurring across the city. To do so, we divide the number of arrests by the number of complaints. Smaller and greater values of this measure indicate more complaints compared to arrests and more arrests compared to complaints, respectively, with the former implying potential under-policing and the latter implying potential over-policing of certain neighborhoods.
+:::
+
+::: g-col-12
+```{r}
+ratio_mods <- readRDS('../data/output/ratio_mods.RDS')
+
+modelsummary(
+  ratio_mods,
+  coef_rename = c(
+    'plurality_ethnicityasian_nh' = 'Predominantly Asian',
+    'plurality_ethnicityblack_nh' = 'Predominantly Black',
+    'plurality_ethnicityhispanic' = 'Predominantly Hispanic',
+    'log(pop)' = 'Population (logged)',
+    'log(B19013_001E)' = 'Median Income (logged)',
+    'gini' = 'Inequality (Gini Index)',
+    'black_nh_prop' = 'Prop. Black',
+    'asian_nh_prop' = 'Prop Asian',
+    'hispanic_prop' = 'Prop. Hispanic'
+  ),
+  output = 'gt',
+  stars = FALSE,
+  estimate = "{ifelse(p.value < 0.05, paste0('<strong>', sprintf('%.3f', as.numeric(estimate)), '</strong>'), sprintf('%.3f', as.numeric(estimate)))}",
+  escape = FALSE
+) |> 
+  gt::fmt_markdown(columns = -1) 
+```
+
+These results present several interesting findings. First, though there is overall a greater number of complaints for index crimes coming from predominantly Black CTs relative to predominantly White ones, we also see a larger number of arrests relative to those complaints. While this does not directly imply a phenomenon of "overpolicing", it does show that these areas are likely more heavily policed relative to the demand for policing, which we define here as how often complaints are being called into 911. Second, we see that predominantly Hispanic/ Latino communities tend to have lower arrest-complaint ratios than predominantly White CTs. We see similar trends when we examine the effects of increases in the share of the CT population comprised of Black New Yorkers. Lastly, there is a clear influence of socioeconomic status on this outcome. Though results for CT median income produce somewhat unreliable estimates, the coefficient for the Gini ratio unveils a stbale and statistically significant relationship between the wealth inequality in a CT and the ratio of arrests to complaints. In more unequal areas, we tend to see a larger number of complaints for index crimes compared to arrests for the same category of crimes. There are two potential mechanisms at play here, which we are unable to discern between given available data. The first is that in CTs with more unequal wealth distributions, wealthier individuals are more suspicious of poorer residents, filing more complaints with the police than are substantiated. Alternatively,
+:::
+::::::
+::::::::
+
+# Temporal Trends
+
+::::::: card
+::: card-header
+Demographics and Post-COVID Increases in Crime
+:::
+
+::::: grid
+::: g-col-12
+Prior to the COVID-19 pandemic, arrest rates throughout the city were dropping, followed by a spike in arrests that occurred after the pandemic. In 2012, the NYPD arrested nearly 400,000 New Yorkers. By 2019, this number had fallen to around 214,000, reaching a historic low of 140,000 in 2020. In the post-pandemic period, there was a sharp rise in arrests, with 2024 seeing over 260,000. While still below pre-pandemic highs, this increase in arrests has been the subject of discussions around policing patterns and public safety.
+
+When broken down by census tract demographics, we can see that predominantly Black and Hispanic/ Latino CTs experienced the largest reductions in arrests during the 2012 - 2020 period. These steep declines led the citywide reduction in crime mentioned above. In the post pandemic period, they disproportionately saw a sharper increase in arrest rates when compared to predominantly White census tracts.
+:::
+
+::: g-col-12
+```{r}
+trend_mods <- readRDS('../data/output/trend_mods.RDS')
+```
+
+```{r}
+modelsummary(
+  trend_mods,
+  output = 'gt',
+  stars = FALSE,
+  estimate = "{ifelse(p.value < 0.05, paste0('<strong>', sprintf('%.3f', as.numeric(estimate)), '</strong>'), sprintf('%.3f', as.numeric(estimate)))}",
+  coef_map = c(
+    'post_covid' = 'Post Covid',
+    'trend' = 'Temporal Trend (year - 2020)',
+    'post_covid:trend' = 'Post Covid Temporal Trend',
+    'post_covid:trend:plurality_ethnicityasian_nh' = 'Post Covid Temporal Trend x Pred. Asian',
+    'post_covid:trend:plurality_ethnicityblack_nh' = 'Post Covid Temporal Trend x Pred. Black',
+    'post_covid:trend:plurality_ethnicityhispanic' = 'Post Covid Temporal Trend x Pred. Hispanic',
+    'post_covid:plurality_ethnicityasian_nh' = 'Post Covid x Pred. Asian',
+    'post_covid:plurality_ethnicityblack_nh' = 'Post Covid x Pred. Black',
+    'post_covid:plurality_ethnicityhispanic' = 'Post Covid x Pred. Hispanic',
+    'trend:plurality_ethnicityasian_nh' = 'Temporal Trend x Pred. Asian',
+    'trend:plurality_ethnicityblack_nh' = 'Temporal Trend x Pred. Black',
+    'trend:plurality_ethnicityhispanic' = 'Temporal Trend x Pred. Hispanic',
+    'plurality_ethnicityasian_nh' = 'Pred. Asian',
+    'plurality_ethnicityblack_nh' = 'Pred. Black',
+    'plurality_ethnicityhispanic' = 'Pred. Hispanic',
+    'log(pop)' = 'Population (logged)',
+    'log(B19013_001E)' = 'Median Income (logged)',
+    'gini' = 'Wealth Inequality'
+  ),
+  escape = FALSE
+) |> 
+  gt::fmt_markdown(columns = -1) 
+```
+:::
+:::::
+:::::::
+
+# Stop, Question, and Frisk
+
+::::: card
+:::: card-header
+Changes in SQF Incidents Over Time
+::::
+
+
+:::::

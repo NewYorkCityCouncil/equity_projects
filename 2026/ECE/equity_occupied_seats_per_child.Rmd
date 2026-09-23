@@ -149,18 +149,18 @@ $$
 \begin{aligned}
 \log\left(\frac{\text{licensed seats} - \text{vacant seats}}{\text{preschool age children}}\right)
 &= \beta_0 \\
-&\quad + \beta_1(\text{Hispanic/Latino share}) \\
-&\quad + \beta_2(\text{Black non-Hispanic share}) \\
-&\quad + \beta_3(\text{Asian/API non-Hispanic share}) \\
+&\quad + \beta_1(\text{Hispanic share}) \\
+&\quad + \beta_2(\text{Black share}) \\
+&\quad + \beta_3(\text{Asian share}) \\
 &\quad + \beta_4(\text{median household income}) \\
 &\quad + \epsilon
 \end{aligned}
 $$
 :::
 
--   **Asian/API non-Hispanic population share has the strongest relationship with occupied ECE seats.** A 10 percentage-point increase in Asian/API NH population share is associated with approximately 23% more occupied seats per preschool-age child.
--   **Black non-Hispanic population share is positively associated with occupied seats per child, but the association is not statistically significant after adjusting for neighborhood income.**
--   **Hispanic/Latino population share is not meaningfully associated with occupied seats per preschool-age child in this model.**
+-   **Asian population share has the strongest relationship with occupied ECE seats.** A 10 percentage-point increase in Asian population share is associated with approximately 23% more occupied seats per preschool-age child.
+-   **Black population share is positively associated with occupied seats per child, but the association is not statistically significant after adjusting for neighborhood income.**
+-   **Hispanic population share is not meaningfully associated with occupied seats per preschool-age child in this model.**
 -   **Median household income is not strongly associated with occupied seats per preschool-age child** after accounting for neighborhood racial/ethnic composition.
 
 ```{r occupied-table}
@@ -192,9 +192,9 @@ resid_fitted_p
 
 #### Robustness Checks
 
--   **Black NH: Income explains very little of the relationship, but accounting for income increases uncertainty enough that the estimate is no longer significant.**
--   **The Hispanic/Latino association is attenuated after adjustment for income**, implying that income accounts for most of the modest association observed in the model.
--   **The Asian/API NH association remains large and highly statistically significant even after adjusting for income.**
+-   **Black: Income explains very little of the relationship, but accounting for income increases uncertainty enough that the estimate is no longer significant.**
+-   **The Hispanic association is attenuated after adjustment for income**, implying that income accounts for most of the modest association observed in the model.
+-   **The Asian association remains large and highly statistically significant even after adjusting for income.**
 
 ```{r}
 kable(

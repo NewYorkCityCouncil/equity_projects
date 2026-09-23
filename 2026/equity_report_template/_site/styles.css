@@ -47,9 +47,16 @@ main.content {
   padding: 0;
 }
 
-
 .bg-city {
-  background-image: url('images/air.jpg');
+  background-image:
+    linear-gradient(
+      180deg,
+      rgba(6, 52, 94, 0.20) 0%,
+      rgba(6, 52, 94, 0.25) 55%,
+      rgba(6, 52, 94, 0.45) 100%
+    ),
+    url('images/housing.jpg');
+
   background-attachment: fixed;
   background-position: center;
   background-size: cover;
@@ -59,8 +66,107 @@ main.content {
   z-index: 1;
 }
 
+/* Whole black box */
+.title-box {
+  width: min(1100px, 88vw);
+  padding: 2.5rem 3.5rem;
+
+  background: rgba(6, 32, 55, 0.88) !important;
+  border-radius: 0 !important;
+
+  text-align: center;
+  box-sizing: border-box;
+
+  position: relative;
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+/* Series label */
+.series-name {
+  margin: 0 0 1rem;
+
+  color: white;
+
+  font-size: 0.85rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+}
 
 
+/* Actual report title */
+.cr-title {
+  margin: 0 !important;
+
+  color: white !important;
+
+  font-size: clamp(2.1rem, 3.2vw, 3.4rem) !important;
+  line-height: 1.12 !important;
+  font-weight: 500 !important;
+
+  text-align: center;
+}
+
+
+/* Subtitle */
+.cr-subtitle {
+  max-width: 750px;
+  margin: 1.25rem auto 0;
+
+  color: rgba(255, 255, 255, 0.85);
+
+  font-size: 1.1rem;
+  line-height: 1.4;
+}
+
+.key-findings {
+  width: min(900px, calc(100% - 4rem));
+  margin: 2.5rem auto 0;
+  padding: 1.9rem 2.5rem 2.1rem;
+
+  background: #f3f1ed;
+  color: #222222;
+
+  border-top: 4px solid #0b3b67;
+
+  box-sizing: border-box;
+}
+
+.key-findings-label {
+  margin: 0 0 1rem;
+
+  color: #0b3b67;
+
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.key-finding {
+  display: grid;
+  grid-template-columns: 1.5rem 1fr;
+  gap: 1.1rem;
+
+  padding: 1.15rem 0;
+
+  border-top: 1px solid #d5d5d5;
+}
+
+.key-finding p {
+  margin: 0;
+
+  color: #2b2b2b;
+
+  font-size: 1rem;
+  line-height: 1.48;
+}
+
+.finding-arrow {
+  color: #0b3b67;
+  font-size: 1.15rem;
+  line-height: 1.45;
+}
 /* =========================================================
    COUNCIL NAVBAR
 ========================================================= */
@@ -82,33 +188,10 @@ main.content {
   padding-bottom: 40vh !important;
 }
 
-.cr-hero-overlay {
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(
-  180deg,
-  rgba(6, 52, 94, 0.1) 0%,
-  rgba(6, 52, 94, 0.15) 55%,
-  rgba(6, 52, 94, 0.5) 100%
-  );
-  pointer-events: none;
-  z-index: 1;
-}
-
 .cr-section .sticky {
   position: relative;
 }
 
-.hero {
-  background-image: url('images/air.jpg');
-  background-attachment: fixed;
-  background-position: center;
-  background-size: cover;
-  background-repeat: no-repeat;
-  position: relative;
-  min-height: 100vh;
-  z-index: 1;
-}
 /* =========================================================
    REPORT LAYOUT
 ========================================================= */
@@ -122,7 +205,7 @@ main.content {
   justify-content: center;
   gap: 4rem;
 
-  padding: 6rem 0 8rem;
+  padding: 2.75rem 0 8rem;
 }
 
 
@@ -184,3 +267,20 @@ main.content {
 }
 
 
+/* Reading progress bar */
+
+#reading-progress {
+  position: fixed;
+
+  top: var(--navbar-height);
+  left: 0;
+
+  width: 0%;
+  height: 3px;
+
+  background: #0b3b67;
+
+  z-index: 9999;
+
+  transition: width 0.1s linear;
+}

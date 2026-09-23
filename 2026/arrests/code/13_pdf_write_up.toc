@@ -1,0 +1,4 @@
+\contentsline {section}{\numberline {1}Introduction and Key Findings}{1}{section.1}%
+\contentsline {section}{\numberline {2}Temporal Trends in NYC Arrests}{2}{section.2}%
+\contentsline {section}{\numberline {3}Geographic and Demographic Trends in NYPD Arrests}{5}{section.3}%
+\contentsline {section}{\numberline {4}Index Crimes}{10}{section.4}%

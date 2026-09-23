@@ -7,7 +7,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
 
 
-<title>no – New York City Council</title>
+<title>Rental Housing Equity – New York City Council</title>
 <style>
 code{white-space: pre-wrap;}
 span.smallcaps{font-variant: small-caps;}
@@ -54,15 +54,39 @@ ul.task-list li input[type="checkbox"] {
   }
 }</script>
 <style>html{ scroll-behavior: smooth; }</style>
+</head><body class="floating nav-fixed"><div id="reading-progress"></div>
+
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+
+  const progressBar = document.getElementById("reading-progress");
+
+  window.addEventListener("scroll", function () {
+
+    const scrollTop = window.scrollY;
+
+    const documentHeight =
+      document.documentElement.scrollHeight -
+      window.innerHeight;
+
+    const scrollPercent =
+      (scrollTop / documentHeight) * 100;
+
+    progressBar.style.width = scrollPercent + "%";
+
+  });
+
+});
+</script>
 <meta cr-debug-mode="false">
 <meta cr-remove-header-space="false">
 
 
 <link rel="stylesheet" href="site_libs/quarto-contrib/quarto-project/qmd-lab/closeread/closeread.css">
 <link rel="stylesheet" href="styles.css">
-</head>
 
-<body class="floating nav-fixed">
+
+
 
 <div id="quarto-search-results"></div>
   <header id="quarto-header" class="headroom fixed-top">
@@ -136,7 +160,7 @@ ul.task-list li input[type="checkbox"] {
 
 <header id="title-block-header" class="quarto-title-block default">
 <div class="quarto-title">
-<h1 class="title">no</h1>
+<h1 class="title">Rental Housing Equity</h1>
 </div>
 
 
@@ -156,8 +180,16 @@ ul.task-list li input[type="checkbox"] {
 <div class="cr-section bg-city cr-column-screen overlay-center">
 <div class="narrative-col">
 <div class="trigger">
-<div class="narrative">
-<p><span class="cr-title">Air Quality: Looking at XYZ through a racial lens</span></p>
+<div class="title-box narrative">
+<p class="series-name">
+NYC COUNCIL RACIAL EQUITY SERIES
+</p>
+<section id="how-do-race-and-subsidy-status-intersect-to-shape-rental-housing-conditions" class="level1 cr-title">
+<h1 class="cr-title">How Do Race and Subsidy Status Intersect to Shape Rental Housing Conditions?</h1>
+<p class="cr-subtitle">
+An analysis of rental housing conditions across New York City
+</p>
+</section>
 </div>
 </div>
 </div>
@@ -167,37 +199,65 @@ ul.task-list li input[type="checkbox"] {
 </div>
 </div>
 </div>
+<div class="report-background">
+<div class="key-findings">
+<p class="key-findings-label">
+KEY FINDINGS
+</p>
+<div class="key-finding">
+<span class="finding-arrow">→</span>
+<p>
+Subsidized renters experience different housing conditions than unsubsidized renters, even after accounting for other household characteristics.
+</p>
+</div>
+<div class="key-finding">
+<span class="finding-arrow">→</span>
+<p>
+Racial disparities in housing conditions persist within subsidy groups.
+</p>
+</div>
+<div class="key-finding">
+<span class="finding-arrow">→</span>
+<p>
+The findings point to specific areas where City housing policy and enforcement may be able to reduce disparities.
+</p>
+</div>
+</div>
 <div class="report-layout">
 <div class="report-navigation">
 <p class="toc-label">
 In this report
 </p>
 <nav>
-<a href="#overview">Overview</a> <a href="#background">Background</a> <a href="#methodology">Methodology</a> <a href="#what-we-found">What we found</a>
+<a href="#executive-summary">Executive Summary</a> <a href="#background">Background</a> <a href="#methodology">Methodology</a> <a href="#what-we-found">What we found</a> <a href="#policy-implications">Policy Implications</a>
 </nav>
 </div>
 <div class="article-column">
-<section id="overview" class="level2">
-<h2 class="anchored" data-anchor-id="overview">Overview</h2>
-<p>This report examines how access to public resources, services, and opportunities varies across New York City neighborhoods.</p>
-<p>The opening section can provide background on the policy issue, explain why it matters, and introduce the questions addressed by the analysis.</p>
+<section id="executive-summary" class="level2">
+<h2 class="anchored" data-anchor-id="executive-summary">Executive Summary</h2>
+<p>This analysis looks at the housing quality of renters throughout New York City through the lens of racial equity. Our primary goal was to answer the question, “controlling for other predictor, how different is the number of housing issues across different races?” We already know that Black and Hispanic New Yorkers are overrepresented in public and subsidized housing throughout the city, but we hope to identify if there are differences in housing quality that are not explained by external factors such as housing subsidy or building age. If race itself is a predictor of housing quality, then it is possible that some other form of housing discrimination, whether it be historic, systemic, or explicit, is still impacting New Yorkers today and will likely require direct intervention and legislative solutions to ensure equity for all New Yorkers.</p>
 </section>
 <section id="background" class="level2">
-<h2 class="anchored" data-anchor-id="background">Policy Implications</h2>
-<p>Explain what the results mean for policymakers, agencies, service providers, and affected communities.</p>
+<h2 class="anchored" data-anchor-id="background">Background</h2>
 </section>
 <section id="methodology" class="level2">
 <h2 class="anchored" data-anchor-id="methodology">Methodology</h2>
-<p>Describe the data sources, geographic unit, study period, analytical approach, and limitations.</p>
+<p>This analysis uses the 2023 New York City Hosing Vacancy Survey (NYCHVS), a triennial survey conducted by the U.S. Census Bureau on behalf of the New York City Department of Housing Preservation and Development. The NYCHVS is the primary source for housing conditions data in New York City and includes information on renter characteristics, building characteristics, subsidy program participation, and physical housing conditions. Survey responses were collected January through mid-June of 2023. The 2023 NYCHVS had a sample of about 15,600 housing units and a response rate of 71% percent (weighted response rate: 68%). Each unit in the 2023 NYCHVS dataset represents approximately 385 similar housing units. The analytic sample for our models is drawn from the full NYCHVS renter file and split into three subsamples for analysis: subsidized renters (public housing, voucher holders, and other subsidy programs; n=1,125), unsubsidized renters (n=1,973), and all renters combined (n=3,098). A survey weighted negative binomial model using the 80 replicate weights from the NYCHVS was run for each of the three analytic subsamples. Variance estimation uses the NYCHVS successive difference replication (SDR) method, in which 80 replicate weights (FW1– FW80) are used to compute standard errors via the formula: Var = (4/80) × Σ(theta_r − theta_0)². The outcome for each of the three models was the count of unique serious unsafe housing conditions.2 Housing quality issues are self-identified by renters in the NYCHVS. Our analysis controlled for race3, subsidy program4, rent regulation program5, building information6, and household demographics including if the presence of children, older adults, and single adult households. The diagnostics for each of the three models are as follows:</p>
 </section>
 <section id="what-we-found" class="level2">
 <h2 class="anchored" data-anchor-id="what-we-found">What We Found</h2>
 <p>Present the main findings here.</p>
 <p>You can add additional paragraphs, charts, maps, tables, and subsections as the report develops.</p>
 </section>
+<section id="policy-implications" class="level2">
+<h2 class="anchored" data-anchor-id="policy-implications">Policy Implications</h2>
+<p>Together these findings seem to suggest that external factors alone such as building age, rent regulation status, and housing subsidy status do not explain all of the differences in housing quality across different racial groups. Even after accounting for these factors, Black and Hispanic renters report significantly more housing issues than White renters with otherwise similar housing situations. This points to some form of housing discrimination (historic, systemic, or explicit) that continues to affect New Yorkers today. Legislative solutions should prioritize identifying where in the rental process these issues are arising. Some examples of this could be:</p>
+<p>• Reporting bills that evaluate whether existing housing discrimination protections (e.g., source-of-income protections, fair housing enforcement) adequately address disparities that persist after controlling for subsidy and regulation status • Reporting bill to require a matched-audit study of rental applications or analysis linking housing conditions to historic redlining maps, to identify where in the housing pipeline these disparities originate.</p>
+<p>Possible mechanisms of housing discrimination including historic redlining, differential application approval by race, or neighborhood-priority policies that make it harder for Black and Hispanic New Yorkers to move into higher-quality-housing neighborhoods, remain untested by this analysis and are worth further study. But the disparities themselves are not in question: they are statistically significant, hold across subsidized and unsubsidized renters alike, and are not explained by the factors this analysis controls for.</p>
+</section>
 </div>
 </div>
-<p>:::</p>
+</div>
 
 
 

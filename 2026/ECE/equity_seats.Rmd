@@ -128,9 +128,9 @@ This model asks: after accounting for the size of the preschool-age population, 
 \begin{aligned}
 \log\left(\frac{\text{seats}}{\text{preschool-age children}}\right)
 &= \beta_0 \\
-&\quad + \beta_1(\text{Hispanic/Latino share}) \\
-&\quad + \beta_2(\text{Black non-Hispanic share}) \\
-&\quad + \beta_3(\text{Asian/API non-Hispanic share}) \\
+&\quad + \beta_1(\text{Hispanic share}) \\
+&\quad + \beta_2(\text{Black share}) \\
+&\quad + \beta_3(\text{Asian share}) \\
 &\quad + \beta_4(\text{median household income}) \\
 &\quad + \epsilon
 \end{aligned}
@@ -138,9 +138,9 @@ This model asks: after accounting for the size of the preschool-age population, 
 </div>
 
 
-- **Asian/API non-Hispanic population share has the strongest relationship with number of ECE seats.** A 10 % point increase in Asian/API NH population share is associated with ~20% more seats.
-- **Black non-Hispanic population share is also positively associated with seats per child**
-- **Hispanic/Latino population share is not meaningfully associated with seats per child in this model.**
+- **Asian population share has the strongest relationship with number of ECE seats.** A 10 % point increase in Asian population share is associated with ~20% more seats.
+- **Black population share is also positively associated with seats per child**
+- **Hispanic population share is not meaningfully associated with seats per child in this model.**
 - **Median household income is not strongly associated with seats per child after accounting for neighborhood racial/ethnic makeup**
 
 ```{r model-table}
@@ -180,7 +180,7 @@ resid_fitted_p
 
 ### Robustness Checks 
 
-Dropping median HH income from model, we see that income attenuates the NH Black category, suggesting that part of the observed association between Black population share and seats/child is explained by differences in neighborhood income.For both models, Asian/API NH remains significant and suggests that in these neighborhoods with higher shares of Asian/API NH have more seats, regardless of median income. 
+Dropping median HH income from model, we see that income attenuates the Black category, suggesting that part of the observed association between Black population share and seats/child is explained by differences in neighborhood income.For both models, Asian remains significant and suggests that in these neighborhoods with higher shares of Asian have more seats, regardless of median income. 
 
 ```{r}
 kable(

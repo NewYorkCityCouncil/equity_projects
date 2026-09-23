@@ -70,9 +70,10 @@
 # -----------------------------------------------------------------------------
 # 0. Packages and environment setup
 # -----------------------------------------------------------------------------
+
 ```{r}
 # Create new environment at "equity_projects/2026/housing_quality/"
-setwd("./2026/housing_quality")
+setwd("../")
 source("renv/activate.R")
 
 library(tidyverse)
@@ -89,9 +90,11 @@ library(broom)
 
 
 
+
 # -----------------------------------------------------------------------------
 # 1. Configuration
 # -----------------------------------------------------------------------------
+
 ```{r}
 INPUT_CSV  <- "./data/processed/howell_replication_nychvs.csv"
 OUTPUT_CSV <- "./data/processed/controlled_svy_unsafe_cond_results.csv"
@@ -125,9 +128,11 @@ ALL_PREDICTORS <- c(
 
 
 
+
 # -----------------------------------------------------------------------------
 # 2. Load and prepare
 # -----------------------------------------------------------------------------
+
 ```{r}
 df_raw <- read_csv(INPUT_CSV, show_col_types = FALSE)
 cat(sprintf("Loaded %s rows.\n\n", format(nrow(df_raw), big.mark = ",")))
@@ -156,9 +161,11 @@ df <- df_raw |>
 
 
 
+
 # -----------------------------------------------------------------------------
 # 3. Overdispersion check (same logic as before -- decides NB vs. Poisson path)
 # -----------------------------------------------------------------------------
+
 ```{r}
 uc_mean <- mean(df[[OUTCOME_COL]], na.rm = TRUE)
 uc_var  <- var(df[[OUTCOME_COL]],  na.rm = TRUE)
@@ -179,9 +186,11 @@ cat(sprintf("  -> Will attempt: %s\n\n",
 
 
 
+
 # -----------------------------------------------------------------------------
 # 4. Collinearity check (VIF on a Poisson GLM -- unchanged diagnostic)
 # -----------------------------------------------------------------------------
+
 ```{r}
 cat(strrep("=", 60), "\n")
 cat("COLLINEARITY CHECK (VIF, all-renters sample)\n")
@@ -230,9 +239,11 @@ cat("\n")
 
 
 
+
 # -----------------------------------------------------------------------------
 # 5. Helper: prepare analytic subset (unchanged from prior version)
 # -----------------------------------------------------------------------------
+
 ```{r}
 prep_subset <- function(data, subsidy_levels, standardize = FALSE) {
   needed <- c(ALL_PREDICTORS, OUTCOME_COL, "FW")
@@ -288,9 +299,11 @@ prep_subset <- function(data, subsidy_levels, standardize = FALSE) {
 
 
 
+
 # -----------------------------------------------------------------------------
 # 6. Build the model formula for a given subset (unchanged level-count gating)
 # -----------------------------------------------------------------------------
+
 ```{r}
 build_formula <- function(data) {
   n_sub_levels <- nlevels(droplevels(data$SUBSIDY))
@@ -306,6 +319,7 @@ build_formula <- function(data) {
   )
 }
 ```
+
 
 
 
@@ -333,6 +347,7 @@ build_formula <- function(data) {
 # marginally associated with missingness but NOT conditionally, the complete-
 # case race coefficients are protected under MAR.
 # -----------------------------------------------------------------------------
+
 ```{r}
 test_missingness <- function(data, fml) {
   yv <- all.vars(fml)[1]
@@ -479,6 +494,7 @@ compare_ipw <- function(main_fit, ipw, blocks = c("RACE", "SUBSIDY", "REGSTATUS"
 
 
 
+
 # -----------------------------------------------------------------------------
 # 7. Build the SDR replicate-weight survey design
 # -----------------------------------------------------------------------------
@@ -487,6 +503,7 @@ compare_ipw <- function(main_fit, ipw, blocks = c("RACE", "SUBSIDY", "REGSTATUS"
 # design-based variance matches what the manual SDR loop computed in the
 # prior version (independently validated: SE ratio range 0.906-1.046).
 # -----------------------------------------------------------------------------
+
 ```{r}
 build_svy_design <- function(data) {
   svrepdesign(
@@ -501,6 +518,7 @@ build_svy_design <- function(data) {
   )
 }
 ```
+
 
 
 
@@ -522,6 +540,7 @@ build_svy_design <- function(data) {
 # checked explicitly; check the console messages on first run for each
 # sample before trusting the reported family.
 # -----------------------------------------------------------------------------
+
 ```{r}
 # "scaled.weights" is created inside the survey design via update() and then
 # referenced by name in glm.nb(weights = scaled.weights); declaring it here
@@ -708,6 +727,7 @@ fit_survey_model <- function(data, use_nb) {
 
 
 
+
 # -----------------------------------------------------------------------------
 # 9. Generic coefficient/SE extraction
 # -----------------------------------------------------------------------------
@@ -715,6 +735,7 @@ fit_survey_model <- function(data, use_nb) {
 # objects without assuming a specific S3 method exists for each. Tries the
 # most specific approach first and falls back progressively.
 # -----------------------------------------------------------------------------
+
 ```{r}
 get_model_coefs <- function(fit) {
   # NB fits from svy_nb_fit() carry coefficients and replicate-based SEs
@@ -761,6 +782,7 @@ get_model_coefs <- function(fit) {
 
 
 
+
 # -----------------------------------------------------------------------------
 # 10. Generic joint (block-level) significance test
 # -----------------------------------------------------------------------------
@@ -777,6 +799,7 @@ get_model_coefs <- function(fit) {
 # there and gives an F-test with design degrees of freedom rather than a
 # chi-square.
 # -----------------------------------------------------------------------------
+
 ```{r}
 joint_wald_test <- function(fit, term_prefix) {
   cf  <- coef(fit)
@@ -830,9 +853,11 @@ run_joint_tests <- function(svy_obj) {
 
 
 
+
 # -----------------------------------------------------------------------------
 # 11. Build result table + pretty-print (same layout as the prior version)
 # -----------------------------------------------------------------------------
+
 ```{r}
 make_result_df <- function(coef_tbl, sample_label, n, family_used) {
   coef_tbl |>
@@ -888,9 +913,11 @@ print_coef_table <- function(res_df) {
 
 
 
+
 # -----------------------------------------------------------------------------
 # 12. Sample sizes (unchanged)
 # -----------------------------------------------------------------------------
+
 ```{r}
 df_sub   <- df |> filter(IS_SUBSIDIZED)
 df_unsub <- df |> filter(!IS_SUBSIDIZED)
@@ -916,9 +943,11 @@ cat("\n")
 
 
 
+
 # -----------------------------------------------------------------------------
 # 13. Main loop -- fit, extract, test, diagnose, per sample
 # -----------------------------------------------------------------------------
+
 ```{r}
 all_results <- list()
 all_svy     <- list()   # svy_obj list (fit + design + terms), for later reuse
@@ -1034,12 +1063,17 @@ cat("\n\u2020 AIAN_NHPI and Other_2plus may have n<10 in the subsidized sample; 
 
 
 
+
 # -----------------------------------------------------------------------------
 # 14. Save
 # -----------------------------------------------------------------------------
+
 ```{r}
 results <- bind_rows(all_results)
 write_csv(results, OUTPUT_CSV)
 cat(sprintf("Saved full coefficient table to %s\n", OUTPUT_CSV))
 cat("Done.\n")
+```
+
+```{r}
 ```

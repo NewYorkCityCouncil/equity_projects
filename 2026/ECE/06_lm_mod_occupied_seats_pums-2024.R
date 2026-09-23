@@ -35,9 +35,9 @@ occupied_results[
     percent_change_high = 100 * (exp(conf.high) - 1),
     term_label = fcase(
       term == "(Intercept)", "Intercept",
-      term == "pct_hispanic10", "10 percentage-point inc Hispanic/Latino",
-      term == "pct_black10", "10 percentage-point inc Black NH",
-      term == "pct_asian10", "10 percentage-point inc Asian/API NH",
+      term == "pct_hispanic10", "10 percentage-point inc Hispanic",
+      term == "pct_black10", "10 percentage-point inc Black",
+      term == "pct_asian10", "10 percentage-point inc Asian",
       term == "median_inc_10k", "$10,000 inc Median hh income",
       default = term
     )
@@ -199,9 +199,9 @@ race_only <- copy(resultsre)
 race_only[
   ,
   predictor := fcase(
-    term == "pct_hispanic10", "Hispanic/Latino",
-    term == "pct_black10", "Black NH",
-    term == "pct_asian10", "Asian/API NH",
+    term == "pct_hispanic10", "Hispanic",
+    term == "pct_black10", "Black",
+    term == "pct_asian10", "Asian",
     default = NA_character_
   )
 ]
@@ -228,9 +228,9 @@ with_income <- copy(occupied_results)
 with_income[
   ,
   predictor := fcase(
-    term == "pct_hispanic10", "Hispanic/Latino",
-    term == "pct_black10", "Black NH",
-    term == "pct_asian10", "Asian/API NH",
+    term == "pct_hispanic10", "Hispanic",
+    term == "pct_black10", "Black",
+    term == "pct_asian10", "Asian",
     term == "median_inc_10k", "Median household income",
     default = NA_character_
   )
@@ -266,9 +266,9 @@ compare_table[
   predictor := factor(
     predictor,
     levels = c(
-      "Hispanic/Latino",
-      "Black NH",
-      "Asian/API NH",
+      "Hispanic",
+      "Black",
+      "Asian",
       "Median household income"
     )
   )
@@ -306,4 +306,3 @@ setnames(compare_table, "predictor", "Predictor")
 #     y = "Predicted log(occupied seats per preschool-age child)"
 #   ) +
 #   theme_minimal(base_size = 12)
-
