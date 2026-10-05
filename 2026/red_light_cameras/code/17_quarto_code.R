@@ -176,7 +176,17 @@ rl_dates <- rl_unique %>%
 pal_date <- colorFactor("Set1", domain = rl_dates$months)
 
 install_map <- leaflet(rl_dates) %>%
-  addTiles() %>%
+  addTiles(
+    urlTemplate = paste0(
+      "https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png?key=", # pretty sure you just have to know the code to put after rastertiles
+      Sys.getenv("CARTO_API_KEY")
+    ),
+    attribution = '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>, © <a href="https://carto.com/attributions">CARTO</a>',
+    options = tileOptions(
+      subdomains = c("a", "b", "c", "d"),
+      maxZoom = 20
+    )
+  ) %>%
   addCircleMarkers(
     color = ~ pal_date(rl_dates$months),
     popup = paste0(
@@ -197,7 +207,17 @@ install_map
 
 map_export_camera_locs <- leaflet(rl_unique) %>%
   setView(-73.941281, 40.704103, zoom = 11) %>%
-  addTiles() %>%
+  addTiles(
+    urlTemplate = paste0(
+      "https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png?key=", # pretty sure you just have to know the code to put after rastertiles
+      Sys.getenv("CARTO_API_KEY")
+    ),
+    attribution = '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>, © <a href="https://carto.com/attributions">CARTO</a>',
+    options = tileOptions(
+      subdomains = c("a", "b", "c", "d"),
+      maxZoom = 20
+    )
+  ) %>%
   addCircleMarkers(
     popup = lapply(
       paste(

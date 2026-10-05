@@ -37,6 +37,7 @@ rl_merged <- rl_merged_csv %>%
     )
   )
 
+# Find unique intersections. Results in less intersections than when grouping by full_street, since many duplicates of "street1 @ street2" and "street2 @ street1"
 rl_unique <- rl_merged %>%
   mutate(issue_date = ymd_hms(issue_date)) %>%
   group_by(geometry) %>%
@@ -50,6 +51,7 @@ rl_unique <- rl_merged %>%
     lon = st_coordinates(.)[, 1],
     lat = st_coordinates(.)[, 2]
   )
+
 
 #######################################################################################################################################
 ### Merge with NTA shapefile ----------------------------------

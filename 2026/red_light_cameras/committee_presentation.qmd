@@ -1,6 +1,9 @@
 ---
 title: "Red Light Cameras Equity Project for Committee Staff"
-format: html
+format: 
+  html:
+    self-contained: true
+    toc: true
 
 execute:
   echo: false
