@@ -87,6 +87,8 @@ library(broom)
 
 
 
+
+
 # -----------------------------------------------------------------------------
 # 1. Configuration
 # -----------------------------------------------------------------------------
@@ -126,6 +128,8 @@ ALL_PREDICTORS <- c(
 
 
 
+
+
 # -----------------------------------------------------------------------------
 # 2. Load and prepare
 # -----------------------------------------------------------------------------
@@ -160,6 +164,8 @@ df <- df_raw |>
 
 
 
+
+
 # -----------------------------------------------------------------------------
 # 3. Overdispersion check (same logic as before -- decides NB vs. Poisson path)
 # -----------------------------------------------------------------------------
@@ -181,6 +187,8 @@ cat(sprintf("  -> Will attempt: %s\n\n",
             if (use_nb) "svymle NB [fallback: svyglm quasipoisson]"
             else        "svyglm() poisson"))
 ```
+
+
 
 
 
@@ -235,6 +243,8 @@ if (!is.null(vif_vals)) {
 }
 cat("\n")
 ```
+
+
 
 
 
@@ -301,6 +311,8 @@ prep_subset <- function(data, subsidy_levels, standardize = FALSE) {
 
 
 
+
+
 # -----------------------------------------------------------------------------
 # 6. Build the model formula for a given subset (unchanged level-count gating)
 # -----------------------------------------------------------------------------
@@ -320,6 +332,8 @@ build_formula <- function(data) {
   )
 }
 ```
+
+
 
 
 
@@ -498,6 +512,8 @@ compare_ipw <- function(main_fit, ipw, blocks = c("RACE", "SUBSIDY", "REGSTATUS"
 
 
 
+
+
 # -----------------------------------------------------------------------------
 # 7. Build the SDR replicate-weight survey design
 # -----------------------------------------------------------------------------
@@ -521,6 +537,8 @@ build_svy_design <- function(data) {
   )
 }
 ```
+
+
 
 
 
@@ -733,6 +751,8 @@ fit_survey_model <- function(data, use_nb) {
 
 
 
+
+
 # -----------------------------------------------------------------------------
 # 9. Generic coefficient/SE extraction
 # -----------------------------------------------------------------------------
@@ -784,6 +804,8 @@ get_model_coefs <- function(fit) {
   out
 }
 ```
+
+
 
 
 
@@ -861,6 +883,8 @@ run_joint_tests <- function(svy_obj) {
 
 
 
+
+
 # -----------------------------------------------------------------------------
 # 11. Build result table + pretty-print (same layout as the prior version)
 # -----------------------------------------------------------------------------
@@ -922,6 +946,8 @@ print_coef_table <- function(res_df) {
 
 
 
+
+
 # -----------------------------------------------------------------------------
 # 12. Sample sizes (unchanged)
 # -----------------------------------------------------------------------------
@@ -948,6 +974,8 @@ for (info in list(
 }
 cat("\n")
 ```
+
+
 
 
 
@@ -1151,6 +1179,8 @@ nb_residual_diagnostics <- function(svy_obj, nsim = 1000) {
 
 
 
+
+
 # -----------------------------------------------------------------------------
 # 13. Main loop -- fit, extract, test, diagnose, per sample
 # -----------------------------------------------------------------------------
@@ -1277,6 +1307,8 @@ cat(sprintf("\nDHARMa diagnostic plots saved to %s\n", DIAG_PDF))
 cat("\n\u2020 AIAN_NHPI and Other_2plus may have n<10 in the subsidized sample; ",
     "interpret coefficients with caution.\n\n")
 ```
+
+
 
 
 
