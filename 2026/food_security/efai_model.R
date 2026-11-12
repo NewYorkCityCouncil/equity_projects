@@ -8,6 +8,8 @@ library(corrplot)
 library(leaps)
 library(broom)
 library(purrr)
+library(spatialreg)
+library(spdep)
 census_api_key(census_key)
 
 ################################################################################
@@ -23,9 +25,9 @@ food_insecurity_raw <- fromJSON(food_insecurity_url)
 food_insecurity_nta <- food_insecurity_raw %>%
   filter(year == 2025) %>% 
   mutate(nta = toupper(as.character(nta)), 
-         food_insecure_percentage = as.numeric(food_insecure_percentage), 
+         food_insecure_percentage = as.numeric(food_insecure_percentage)*100, 
          supply_gap_lbs = as.numeric(supply_gap_lbs), 
-         unemployment_rate = as.numeric(unemployment_rate), 
+         unemployment_rate = as.numeric(unemployment_rate)*100, 
          vulnerable_population = as.numeric(vulnerable_population)) %>%
   select(nta, food_insecure_percentage, supply_gap_lbs, unemployment_rate, vulnerable_population) %>%
   drop_na(nta) %>% 
@@ -147,9 +149,10 @@ combined = efai %>% dplyr::select(GEOID, index) %>%
          county = substr(GEOID, 1, 5)) %>% 
   filter(total_popE > 0)
 
+write_csv(combined, "data/panel.csv")
 
 ################################################################################
-# model
+# linear model
 ################################################################################
 
 # 005 = Bronx, 047 = bk, 061 = mn, 081 = qn, 085 = si
@@ -164,7 +167,7 @@ corrplot(cor(combined %>%
 # how much access to emergency food is there (+ = more access)
 summary(lm(index ~ total_popE + perc_black + perc_hisp + perc_asian + perc_two + 
              perc_other + perc_native + perc_pacific +
-             food_insecure_percentage + supply_gap_lbs_natural + county, 
+             food_insecure_percentage + supply_gap_lbs_natural, 
            data = combined))
 
 # how much access to emergency food is there (+ = more access)
@@ -194,6 +197,43 @@ models = regsubsets(index ~ total_popE + median_incomeE + perc_pov + perc_white 
                 grocery_10k + bodega_10k + vices_10k + fastfood_10k, 
                data = combined, nbest = 1, nvmax = 15, method="exhaustive")
 summary(models)
+
+
+################################################################################
+# spatial model
+################################################################################
+
+combined_sf = merge(tract_spatial, combined, on="GEOID")
+combined_sf = combined_sf %>% 
+  filter(!is.na(index), !is.na(total_popE), !is.na(perc_black), 
+         !is.na(perc_hisp), !is.na(perc_asian), !is.na(perc_two), 
+         !is.na(perc_other), !is.na(perc_native), !is.na(perc_pacific), 
+         !is.na(food_insecure_percentage), !is.na(supply_gap_lbs_natural), 
+         !is.na(county))
+
+saveRDS(combined_sf, "data/spatial_panel.csv")
+
+# drop islands
+neighbors = poly2nb(combined_sf, queen = TRUE)
+neighbor_counts = card(neighbors)
+combined_sf = combined_sf[neighbor_counts > 0, ]
+
+# set weighting
+neighbors = poly2nb(combined_sf, queen = TRUE)
+weights_matrix = nb2listw(neighbors, style = "W")
+
+
+# model
+spatial_model <- lagsarlm(index ~ total_popE + perc_black + perc_hisp + 
+                                  perc_asian + perc_two + perc_other + perc_native + 
+                                  perc_pacific + food_insecure_percentage + 
+                                  supply_gap_lbs_natural, 
+                                  data = combined_sf, 
+                                  listw = weights_matrix)
+summary(spatial_model)
+
+model_impacts = impacts(spatial_model, listw = weights_matrix, R = 200)
+summary(model_impacts, zstats = TRUE, short = TRUE)
 
 
 ################################################################################
